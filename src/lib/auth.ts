@@ -82,7 +82,7 @@ export function loginCustomer(
   if (!isMatch) {
     return {
       success: false,
-      error: 'Kata sandi salah. Silakan coba kembali atau gunakan Akun Demo yang tersedia.'
+      error: 'Kata sandi tidak sesuai. Silakan coba kembali atau gunakan menu Lupa Kata Sandi.'
     };
   }
 
@@ -230,7 +230,7 @@ export async function loginStaff(
 
   return {
     success: false,
-    error: 'Akun staf tidak terdaftar. Gunakan kredensial resmi PT Aetra Air Tangerang atau gunakan tombol Akun Demo.'
+    error: 'Akun staf tidak terdaftar. Pastikan email korporat dan kata sandi Anda sudah sesuai.'
   };
 }
 
