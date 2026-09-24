@@ -26,8 +26,8 @@ export const CustomerHeader: React.FC<CustomerHeaderProps> = ({
         <div className="flex items-center justify-between h-16">
           {/* Brand Lockup */}
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-inner group-hover:scale-105 transition-transform">
-              <Droplets className="w-6 h-6 text-white" />
+            <div className="h-10 px-2 py-1 bg-white rounded-xl shadow-md flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+              <img src="/aetra-logo.png" alt="Aetra Air Tangerang" className="h-8 w-auto object-contain" />
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
