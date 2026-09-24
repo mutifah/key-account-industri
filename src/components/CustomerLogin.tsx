@@ -20,6 +20,7 @@ import { Link } from 'react-router-dom';
 import { PelangganIndustri } from '../types';
 import { loginCustomer } from '../lib/auth';
 import { useData } from '../context/DataContext';
+import { AetraLogo } from './AetraLogo';
 
 interface CustomerLoginProps {
   pelangganList: PelangganIndustri[];
@@ -213,16 +214,8 @@ export const CustomerLogin: React.FC<CustomerLoginProps> = ({
           {/* Card Header with Official Transparent Aetra Logo */}
           <div className="p-6 sm:p-8 bg-gradient-to-br from-slate-900 via-slate-900 to-cyan-950 text-white text-center relative overflow-hidden">
             {/* Official Logo Display */}
-            <div className="inline-flex items-center justify-center p-3 bg-white rounded-2xl shadow-lg shadow-cyan-500/10 mb-3 mx-auto">
-              <img
-                src="/aetra-logo.png"
-                alt="PT Aetra Air Tangerang"
-                className="h-12 sm:h-14 w-auto object-contain"
-                onError={(e) => {
-                  // Fallback to text if image not ready
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
+            <div className="mb-3 mx-auto flex justify-center">
+              <AetraLogo size="md" withContainer />
             </div>
 
             <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white font-['Plus_Jakarta_Sans']">
