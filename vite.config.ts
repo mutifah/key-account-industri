@@ -1,4 +1,3 @@
-// vite.config.ts (sudah diperbarui)
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
