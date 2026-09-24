@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AETRA_LOGO_BASE64 } from '../assets/logoBase64';
 
 interface AetraLogoProps {
@@ -12,6 +12,17 @@ export const AetraLogo: React.FC<AetraLogoProps> = ({
   size = 'md',
   withContainer = false
 }) => {
+  const [srcIndex, setSrcIndex] = useState(0);
+
+  // List of fallback sources in order of preference
+  const sources = [
+    AETRA_LOGO_BASE64,
+    '/aetra-logo.png',
+    '/Logo-Aetra-Air-Tangerang_Small.jpg',
+    '/Logo-Aetra-Air-Tangerang_Small.png',
+    '/aetra-logo.jpg'
+  ];
+
   const heightClass = {
     xs: 'h-7',
     sm: 'h-9',
@@ -20,11 +31,18 @@ export const AetraLogo: React.FC<AetraLogoProps> = ({
     xl: 'h-24'
   }[size];
 
+  const handleImgError = () => {
+    if (srcIndex < sources.length - 1) {
+      setSrcIndex(srcIndex + 1);
+    }
+  };
+
   const imgElement = (
     <img
-      src={AETRA_LOGO_BASE64}
+      src={sources[srcIndex]}
       alt="PT Aetra Air Tangerang"
-      className={`${heightClass} w-auto object-contain select-none`}
+      className={`${heightClass} w-auto object-contain select-none transition-all`}
+      onError={handleImgError}
       loading="eager"
       decoding="sync"
     />
@@ -38,5 +56,9 @@ export const AetraLogo: React.FC<AetraLogoProps> = ({
     );
   }
 
-  return <div className={`inline-flex items-center justify-center ${className}`}>{imgElement}</div>;
+  return (
+    <div className={`inline-flex items-center justify-center ${className}`}>
+      {imgElement}
+    </div>
+  );
 };
