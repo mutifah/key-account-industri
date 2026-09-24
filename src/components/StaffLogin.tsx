@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, Mail, ArrowLeft, KeyRound, CheckCircle2, AlertCircle, Eye, EyeOff, Building2 } from 'lucide-react';
+import { ShieldCheck, Lock, Mail, ArrowLeft, KeyRound, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { loginStaff, DEMO_STAFF_ACCOUNTS } from '../lib/auth';
+import { loginStaff } from '../lib/auth';
 import { StaffUser } from '../types';
 
 interface StaffLoginProps {
@@ -9,8 +9,8 @@ interface StaffLoginProps {
 }
 
 export const StaffLogin: React.FC<StaffLoginProps> = ({ onLoginSuccess }) => {
-  const [identifier, setIdentifier] = useState('staff.keyaccount@aetra-tangerang.co.id');
-  const [password, setPassword] = useState('aetra2026');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -22,23 +22,17 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({ onLoginSuccess }) => {
     setIsLoading(true);
 
     try {
-      const result = await loginStaff(identifier, password);
+      const result = await loginStaff(identifier.trim(), password);
       if (result.success && result.user) {
         onLoginSuccess(result.user);
       } else {
-        setErrorMsg(result.error || 'Autentikasi gagal. Periksa kembali email dan kata sandi Anda.');
+        setErrorMsg(result.error || 'Autentikasi gagal. Periksa kembali email korporat dan kata sandi Anda.');
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Terjadi gangguan saat memproses login.');
+      setErrorMsg(err?.message || 'Terjadi gangguan saat memproses login staf.');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleSelectDemo = (email: string, pass: string) => {
-    setIdentifier(email);
-    setPassword(pass);
-    setErrorMsg(null);
   };
 
   return (
@@ -60,21 +54,24 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({ onLoginSuccess }) => {
       {/* Main Login Card */}
       <div className="max-w-md w-full mx-auto my-6">
         <div className="bg-slate-800/90 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-md">
-          {/* Card Header */}
-          <div className="p-6 sm:p-8 bg-gradient-to-b from-slate-800 to-slate-800/60 border-b border-slate-700/80 text-center">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 p-0.5 shadow-lg shadow-cyan-500/20 mb-4 flex items-center justify-center">
-              <div className="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center">
-                <ShieldCheck className="w-8 h-8 text-cyan-400" />
-              </div>
+          {/* Card Header with Official Aetra Logo */}
+          <div className="p-6 sm:p-8 bg-gradient-to-b from-slate-850 to-slate-800/80 border-b border-slate-700/80 text-center">
+            <div className="inline-flex items-center justify-center p-3 bg-white rounded-2xl shadow-lg shadow-cyan-500/10 mb-3 mx-auto">
+              <img
+                src="/aetra-logo.png"
+                alt="PT Aetra Air Tangerang"
+                className="h-12 sm:h-14 w-auto object-contain"
+              />
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
               PT AETRA AIR TANGERANG
             </h1>
-            <p className="text-xs font-semibold uppercase tracking-wider text-cyan-300 mt-1">
-              Portal Staf Key Account & Pengujian Lab
-            </p>
-            <p className="text-xs text-slate-400 mt-2 max-w-xs mx-auto">
-              Silakan masuk dengan akun resmi untuk mengakses pencatatan meter, data mutu air, dan layanan industri.
+            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-amber-950/80 border border-amber-700/60 text-amber-300 text-[11px] font-bold uppercase tracking-wider mt-1.5">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Portal Staf Key Account & Pengujian Lab</span>
+            </div>
+            <p className="text-xs text-slate-400 mt-2 max-w-xs mx-auto leading-relaxed">
+              Silakan masuk dengan email korporat resmi untuk mengelola pencatatan meter, mutu air, dan layanan industri.
             </p>
           </div>
 
@@ -109,7 +106,7 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({ onLoginSuccess }) => {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Kata Sandi
+                  Kata Sandi Staf
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -164,43 +161,6 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({ onLoginSuccess }) => {
                 )}
               </button>
             </form>
-
-            {/* Quick Demo Credentials Box */}
-            <div className="pt-4 border-t border-slate-700/80">
-              <div className="flex items-center justify-between mb-2.5">
-                <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
-                  Pilih Akun Demo Staf (1-Klik)
-                </span>
-                <span className="text-[10px] text-cyan-400 font-mono">Password: aetra2026</span>
-              </div>
-              <div className="grid grid-cols-1 gap-2">
-                {DEMO_STAFF_ACCOUNTS.map((acc) => (
-                  <button
-                    key={acc.id}
-                    type="button"
-                    onClick={() => handleSelectDemo(acc.email, acc.password_hint)}
-                    className={`w-full text-left p-2.5 rounded-xl border transition-all text-xs flex items-center justify-between ${
-                      identifier === acc.email
-                        ? 'bg-cyan-950/40 border-cyan-500 text-white shadow-sm'
-                        : 'bg-slate-900/60 border-slate-700/70 text-slate-300 hover:bg-slate-700/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-[10px] text-cyan-300 shrink-0">
-                        {acc.avatar_initials}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="font-bold truncate text-slate-200">{acc.nama}</div>
-                        <div className="text-[10px] text-slate-400 truncate">{acc.jabatan} ({acc.nik})</div>
-                      </div>
-                    </div>
-                    <span className="text-[10px] text-cyan-400 font-semibold shrink-0 ml-2 bg-slate-800 px-2 py-0.5 rounded border border-slate-700">
-                      Pilih
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </div>
