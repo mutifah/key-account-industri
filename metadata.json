@@ -1,0 +1,6 @@
+{
+  "name": "Aetra Air Tangerang - Portal Key Account & Pelanggan Industri",
+  "description": "Portal terintegrasi pencatatan pemakaian air bulanan real-time, hasil lab kualitas air harian, dan info pelayanan PT Aetra Air Tangerang.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
