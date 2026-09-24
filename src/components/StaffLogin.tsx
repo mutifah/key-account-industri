@@ -3,6 +3,7 @@ import { ShieldCheck, Lock, Mail, ArrowLeft, KeyRound, AlertCircle, Eye, EyeOff 
 import { Link } from 'react-router-dom';
 import { loginStaff } from '../lib/auth';
 import { StaffUser } from '../types';
+import { AetraLogo } from './AetraLogo';
 
 interface StaffLoginProps {
   onLoginSuccess: (user: StaffUser) => void;
@@ -56,12 +57,8 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({ onLoginSuccess }) => {
         <div className="bg-slate-800/90 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-md">
           {/* Card Header with Official Aetra Logo */}
           <div className="p-6 sm:p-8 bg-gradient-to-b from-slate-850 to-slate-800/80 border-b border-slate-700/80 text-center">
-            <div className="inline-flex items-center justify-center p-3 bg-white rounded-2xl shadow-lg shadow-cyan-500/10 mb-3 mx-auto">
-              <img
-                src="/aetra-logo.png"
-                alt="PT Aetra Air Tangerang"
-                className="h-12 sm:h-14 w-auto object-contain"
-              />
+            <div className="mb-3 mx-auto flex justify-center">
+              <AetraLogo size="md" withContainer />
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
               PT AETRA AIR TANGERANG
