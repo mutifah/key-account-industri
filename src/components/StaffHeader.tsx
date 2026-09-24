@@ -3,6 +3,7 @@ import { Droplets, Database, LogOut, ExternalLink, ShieldCheck, User } from 'luc
 import { Link } from 'react-router-dom';
 import { StaffUser } from '../types';
 import { getSavedSupabaseConfig } from '../lib/supabase';
+import { AetraLogo } from './AetraLogo';
 
 interface StaffHeaderProps {
   staffUser: StaffUser | null;
@@ -25,7 +26,7 @@ export const StaffHeader: React.FC<StaffHeaderProps> = ({
           {/* Brand Lockup Internal */}
           <div className="flex items-center gap-3">
             <div className="h-10 px-2 py-1 bg-white rounded-xl shadow-md flex items-center justify-center shrink-0">
-              <img src="/aetra-logo.png" alt="Aetra Air Tangerang" className="h-8 w-auto object-contain" />
+              <AetraLogo size="xs" />
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
