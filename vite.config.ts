@@ -8,7 +8,12 @@ export default defineConfig(() => {
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
-        '@': fileURLToPath(new URL('.', import.meta.url)), // Standar resmi ESM
+        '@': fileURLToPath(new URL('.', import.meta.url)),
       },
     },
-    ...
+    server: {
+      hmr: process.env.DISABLE_HMR !== 'true',
+      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+    },
+  };
+});
