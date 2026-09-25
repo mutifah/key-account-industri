@@ -62,13 +62,13 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
   const [activeFilter, setActiveFilter] = useState<'all' | 'updated' | 'new' | 'invalid'>('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen) return null;
-
   // Customer lookup helper map (case-insensitive)
-  const customerMap = pelangganList.reduce<Record<string, PelangganIndustri>>((acc, p) => {
-    acc[p.id_pelanggan.toLowerCase()] = p;
-    return acc;
-  }, {});
+  const customerMap = useMemo(() => {
+    return pelangganList.reduce<Record<string, PelangganIndustri>>((acc, p) => {
+      acc[p.id_pelanggan.toLowerCase()] = p;
+      return acc;
+    }, {});
+  }, [pelangganList]);
 
   // 1. Download Template Excel Rekap
   const handleDownloadTemplate = () => {
@@ -354,6 +354,8 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
     if (activeFilter === 'invalid') return parsedRows.filter((r) => !r.isValid);
     return parsedRows;
   }, [parsedRows, activeFilter]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs overflow-y-auto">
