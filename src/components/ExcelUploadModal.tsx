@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import {
   Upload,
@@ -7,10 +7,12 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
-  ArrowRight,
   RefreshCw,
-  FileText,
-  Building2
+  Sparkles,
+  Building2,
+  UserPlus,
+  Check,
+  Info
 } from 'lucide-react';
 import { PelangganIndustri, PemakaianAir, StatusProgressMeter } from '../types';
 
@@ -19,12 +21,18 @@ interface ExcelUploadModalProps {
   onClose: () => void;
   pelangganList: PelangganIndustri[];
   latestReadingsMap: Record<string, number>;
-  onBatchSave: (items: (Omit<PemakaianAir, 'id'> & { id?: string })[]) => Promise<void>;
+  onBatchSave: (
+    items: (Omit<PemakaianAir, 'id'> & { id?: string })[],
+    customersToUpdate?: PelangganIndustri[]
+  ) => Promise<void>;
 }
 
 interface ParsedRow {
   id_pelanggan: string;
   nama_perusahaan: string;
+  previous_nama_perusahaan?: string;
+  isNameUpdated: boolean;
+  isNewCustomer: boolean;
   periode_bulan: string;
   periode_tahun: number;
   tanggal_baca: string;
@@ -49,12 +57,14 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
   const [fileName, setFileName] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successCount, setSuccessCount] = useState<number | null>(null);
+  const [successInfo, setSuccessInfo] = useState<{ pemakaianCount: number; customerUpdatedCount: number } | null>(null);
+  const [syncCompanyName, setSyncCompanyName] = useState<boolean>(true);
+  const [activeFilter, setActiveFilter] = useState<'all' | 'updated' | 'new' | 'invalid'>('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
 
-  // Customer lookup helper
+  // Customer lookup helper map (case-insensitive)
   const customerMap = pelangganList.reduce<Record<string, PelangganIndustri>>((acc, p) => {
     acc[p.id_pelanggan.toLowerCase()] = p;
     return acc;
@@ -110,7 +120,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
   // 2. Parse uploaded file
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     setErrorMsg(null);
-    setSuccessCount(null);
+    setSuccessInfo(null);
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -132,19 +142,64 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
 
         const rows: ParsedRow[] = rawJson.map((row) => {
           // Normalize column keys
-          const idPelanggan = (row['ID Pelanggan'] || row['id_pelanggan'] || row['ID'] || '').toString().trim();
+          const idPelanggan = (
+            row['ID Pelanggan'] ||
+            row['id_pelanggan'] ||
+            row['ID'] ||
+            row['Kode Pelanggan'] ||
+            row['No Pelanggan'] ||
+            row['No Sambungan'] ||
+            ''
+          ).toString().trim().toUpperCase();
+
           const cust = customerMap[idPelanggan.toLowerCase()];
-          const namaPerusahaan = cust?.nama_perusahaan || (row['Nama Perusahaan'] || row['nama_perusahaan'] || '').toString().trim();
+
+          // Extract company name directly from Excel
+          const excelNamaPerusahaan = (
+            row['Nama Perusahaan'] ||
+            row['nama_perusahaan'] ||
+            row['Perusahaan'] ||
+            row['Nama Pelanggan'] ||
+            row['Customer'] ||
+            row['Nama Pabrik'] ||
+            row['Company'] ||
+            row['Company Name'] ||
+            ''
+          ).toString().trim();
+
+          // Determine final name: priority is what the staff uploaded in the Excel file!
+          const finalNamaPerusahaan = excelNamaPerusahaan || cust?.nama_perusahaan || '';
+
+          // Check if this row updates an existing company name
+          const isNameUpdated = Boolean(
+            cust &&
+            excelNamaPerusahaan &&
+            cust.nama_perusahaan.trim().toLowerCase() !== excelNamaPerusahaan.trim().toLowerCase()
+          );
+
+          // Check if this row represents a new company not yet in the master list
+          const isNewCustomer = Boolean(!cust && idPelanggan && finalNamaPerusahaan);
 
           const bulan = (row['Bulan'] || row['periode_bulan'] || 'September').toString().trim();
           const tahun = Number(row['Tahun'] || row['periode_tahun'] || 2026);
-          const tanggalBaca = (row['Tanggal Baca (YYYY-MM-DD)'] || row['tanggal_baca'] || new Date().toISOString().split('T')[0]).toString().trim();
+          const tanggalBaca = (
+            row['Tanggal Baca (YYYY-MM-DD)'] ||
+            row['Tanggal Baca'] ||
+            row['tanggal_baca'] ||
+            new Date().toISOString().split('T')[0]
+          ).toString().trim();
 
-          const meterAwal = Number(row['Meter Awal'] || row['meter_awal'] || 0);
-          const meterAkhir = Number(row['Meter Akhir'] || row['meter_akhir'] || 0);
+          const meterAwal = Number(row['Meter Awal'] || row['meter_awal'] || row['Stand Awal'] || 0);
+          const meterAkhir = Number(row['Meter Akhir'] || row['meter_akhir'] || row['Stand Akhir'] || 0);
           const totalM3 = Math.max(0, meterAkhir - meterAwal);
 
-          const rawStatus = (row['Status Progress'] || row['status_progress'] || row['status'] || 'Pembacaan Meter').toString().trim();
+          const rawStatus = (
+            row['Status Progress'] ||
+            row['status_progress'] ||
+            row['status'] ||
+            'Pembacaan Meter'
+          ).toString().trim();
+
           let statusProgress: StatusProgressMeter = 'Pembacaan Meter';
           if (rawStatus.toLowerCase().includes('bpm') || rawStatus.toLowerCase().includes('penerbitan')) {
             statusProgress = 'Penerbitan BPM';
@@ -162,9 +217,9 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
           if (!idPelanggan) {
             isValid = false;
             errorMessage = 'ID Pelanggan kosong';
-          } else if (!cust) {
+          } else if (!cust && !finalNamaPerusahaan) {
             isValid = false;
-            errorMessage = `ID "${idPelanggan}" tidak terdaftar`;
+            errorMessage = `ID "${idPelanggan}" tidak terdaftar & Nama Perusahaan tidak ada di Excel`;
           } else if (meterAkhir < meterAwal) {
             isValid = false;
             errorMessage = 'Meter akhir lebih kecil dari meter awal';
@@ -172,7 +227,10 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
 
           return {
             id_pelanggan: idPelanggan,
-            nama_perusahaan: namaPerusahaan,
+            nama_perusahaan: finalNamaPerusahaan,
+            previous_nama_perusahaan: cust?.nama_perusahaan,
+            isNameUpdated,
+            isNewCustomer,
             periode_bulan: bulan,
             periode_tahun: tahun,
             tanggal_baca: tanggalBaca,
@@ -208,6 +266,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
     setErrorMsg(null);
 
     try {
+      // 1. Prepare Pemakaian records
       const itemsToSave: (Omit<PemakaianAir, 'id'> & { id?: string })[] = validRows.map((row) => ({
         id_pelanggan: row.id_pelanggan,
         periode_bulan: row.periode_bulan,
@@ -224,14 +283,59 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
         nama_staf_pencatat: 'Batch Import Excel Staf'
       }));
 
-      await onBatchSave(itemsToSave);
-      setSuccessCount(itemsToSave.length);
+      // 2. Prepare Customers to update/register if company name sync is active
+      const customersToUpdate: PelangganIndustri[] = [];
+      if (syncCompanyName) {
+        const processedCustMap: Record<string, boolean> = {};
+
+        validRows.forEach((row) => {
+          const key = row.id_pelanggan.toLowerCase();
+          if (processedCustMap[key]) return;
+          processedCustMap[key] = true;
+
+          const existingCust = customerMap[key];
+          if (existingCust) {
+            // If the staff gave a name in Excel and it's different from the existing one, update it!
+            if (row.nama_perusahaan && row.nama_perusahaan.trim() !== existingCust.nama_perusahaan.trim()) {
+              customersToUpdate.push({
+                ...existingCust,
+                nama_perusahaan: row.nama_perusahaan.trim()
+              });
+            }
+          } else if (row.isNewCustomer) {
+            // Auto register newly discovered industrial partner from Excel
+            const numericPart = row.id_pelanggan.replace(/[^0-9]/g, '');
+            customersToUpdate.push({
+              id_pelanggan: row.id_pelanggan,
+              nama_perusahaan: row.nama_perusahaan.trim(),
+              bidang_usaha: 'Industri Manufaktur',
+              alamat_kawasan: 'Kawasan Industri Tangerang',
+              zona_distribusi: 'Zona A - Cikupa & Pasar Kemis',
+              no_meter: `MTR-${numericPart || Math.floor(1000 + Math.random() * 9000)}`,
+              pic_nama: 'PIC Perusahaan',
+              pic_telepon: '0812-0000-0000',
+              email: `pic.${row.id_pelanggan.toLowerCase()}@perusahaan.co.id`,
+              password: 'aetra' + (numericPart || '123'),
+              status_aktif: true,
+              created_at: new Date().toISOString()
+            });
+          }
+        });
+      }
+
+      await onBatchSave(itemsToSave, customersToUpdate);
+
+      setSuccessInfo({
+        pemakaianCount: itemsToSave.length,
+        customerUpdatedCount: customersToUpdate.length
+      });
+
       setTimeout(() => {
         onClose();
         setParsedRows([]);
         setFileName('');
-        setSuccessCount(null);
-      }, 1400);
+        setSuccessInfo(null);
+      }, 2000);
     } catch (err: any) {
       setErrorMsg(err?.message || 'Gagal menyimpan data rekap ke database.');
     } finally {
@@ -241,46 +345,92 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
 
   const validCount = parsedRows.filter((r) => r.isValid).length;
   const invalidCount = parsedRows.length - validCount;
+  const updatedNameCount = parsedRows.filter((r) => r.isNameUpdated).length;
+  const newCustomerCount = parsedRows.filter((r) => r.isNewCustomer).length;
+
+  const displayedRows = useMemo(() => {
+    if (activeFilter === 'updated') return parsedRows.filter((r) => r.isNameUpdated);
+    if (activeFilter === 'new') return parsedRows.filter((r) => r.isNewCustomer);
+    if (activeFilter === 'invalid') return parsedRows.filter((r) => !r.isValid);
+    return parsedRows;
+  }, [parsedRows, activeFilter]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
-        <div className="p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+        <div className="p-5 sm:p-6 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30 shrink-0">
               <FileSpreadsheet className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-bold">
-                Upload Rekap Excel Pemakaian Air Industri
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-bold">
+                  Upload Excel Rekap & Sinkronisasi Nama Perusahaan
+                </h3>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30 hidden sm:inline-block">
+                  Auto-Sync Aktif
+                </span>
+              </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Impor serentak satu file Excel/CSV untuk generate otomatis seluruh perusahaan mitra
+                Impor data rekap pemakaian sekaligus perbarui nama perusahaan di seluruh website secara otomatis
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-6">
+        <div className="p-5 sm:p-6 overflow-y-auto flex-1 space-y-5">
+          {/* Synchronize Company Name Switch Banner */}
+          <div className="p-4 bg-gradient-to-r from-cyan-50 via-sky-50 to-blue-50 border border-cyan-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-cyan-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                <Sparkles className="w-5 h-5 text-amber-200 animate-pulse" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-900">
+                    Sinkronisasi Nama Perusahaan dari File Excel
+                  </span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                    {syncCompanyName ? 'Aktif' : 'Non-Aktif'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 leading-relaxed mt-0.5">
+                  Jika nama perusahaan di file Excel diubah oleh staf, sistem akan otomatis memperbarui nama perusahaan di seluruh website (portal mandiri pelanggan, bukti BPM, header, dan dashboard).
+                </p>
+              </div>
+            </div>
+
+            <label className="relative inline-flex items-center cursor-pointer shrink-0 self-end sm:self-center">
+              <input
+                type="checkbox"
+                checked={syncCompanyName}
+                onChange={(e) => setSyncCompanyName(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+            </label>
+          </div>
+
           {/* Step 1 & Step 2 Guide Boxes */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Box 1: Download Template */}
-            <div className="p-4 rounded-xl border border-cyan-200 bg-cyan-50/70 flex flex-col justify-between">
+            <div className="p-4 rounded-xl border border-cyan-200 bg-cyan-50/60 flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-2 text-cyan-900 font-bold text-xs mb-1">
                   <Download className="w-4 h-4 text-cyan-600" />
-                  <span>1. Unduh Format Template Excel</span>
+                  <span>1. Unduh Format Template Excel (.xlsx)</span>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Template sudah berisi daftar seluruh ID Pelanggan aktif, nama pabrik, dan stand meter awal bulan sebelumnya secara otomatis.
+                  Template memuat kolom <strong>ID Pelanggan</strong>, <strong>Nama Perusahaan</strong>, stand meter, dan periode. Anda dapat mengedit nama perusahaan langsung di kolom Excel.
                 </p>
               </div>
               <button
@@ -295,9 +445,9 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
 
             {/* Box 2: Upload Area */}
             <div className="p-4 rounded-xl border-2 border-dashed border-slate-300 hover:border-cyan-500 transition-colors bg-slate-50 flex flex-col items-center justify-center text-center">
-              <Upload className="w-6 h-6 text-slate-400 mb-1.5" />
-              <span className="text-xs font-bold text-slate-700">
-                2. Pilih File Rekap yang Sudah Diisi
+              <Upload className="w-6 h-6 text-cyan-600 mb-1.5" />
+              <span className="text-xs font-bold text-slate-800">
+                2. Pilih File Excel yang Diunggah Staf
               </span>
               <p className="text-[11px] text-slate-500 mt-0.5">
                 Mendukung file Excel (.xlsx, .xls) atau .csv
@@ -312,9 +462,9 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="mt-3 py-1.5 px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                className="mt-3 py-1.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer shadow-xs"
               >
-                {fileName ? 'Ganti File Excel' : 'Pilih File dari Komputer'}
+                {fileName ? `Ganti File (${fileName})` : 'Pilih File dari Komputer'}
               </button>
             </div>
           </div>
@@ -328,61 +478,129 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
           )}
 
           {/* Success Notification */}
-          {successCount !== null && (
-            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-              <span className="font-bold">
-                Berhasil mengimpor {successCount} data pemakaian air ke database!
-              </span>
+          {successInfo !== null && (
+            <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs space-y-1">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <span className="font-bold text-sm">
+                  Sinkronisasi & Impor Berhasil!
+                </span>
+              </div>
+              <p className="text-slate-700 pl-7 leading-relaxed">
+                Tersimpan <strong>{successInfo.pemakaianCount}</strong> data rekap pemakaian air.
+                {successInfo.customerUpdatedCount > 0 && (
+                  <span className="text-emerald-800 block">
+                    ✨ Sebanyak <strong>{successInfo.customerUpdatedCount} nama perusahaan</strong> berhasil diperbarui dan kini langsung tayang di portal website pelanggan & staf!
+                  </span>
+                )}
+              </p>
             </div>
           )}
 
           {/* Parsed Preview Table */}
           {parsedRows.length > 0 && (
             <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-800">
-                    Pratinjau Data ({parsedRows.length} baris terdeteksi)
+              {/* Summary Badges and Filter Buttons */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-200">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-bold text-slate-800 mr-1">
+                    Filter Pratinjau:
                   </span>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">
-                    {validCount} Valid
-                  </span>
+                  
+                  <button
+                    onClick={() => setActiveFilter('all')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                      activeFilter === 'all'
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    Semua ({parsedRows.length})
+                  </button>
+
+                  {updatedNameCount > 0 && (
+                    <button
+                      onClick={() => setActiveFilter('updated')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer ${
+                        activeFilter === 'updated'
+                          ? 'bg-amber-600 text-white'
+                          : 'bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300'
+                      }`}
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>Nama Berubah ({updatedNameCount})</span>
+                    </button>
+                  )}
+
+                  {newCustomerCount > 0 && (
+                    <button
+                      onClick={() => setActiveFilter('new')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer ${
+                        activeFilter === 'new'
+                          ? 'bg-cyan-700 text-white'
+                          : 'bg-cyan-100 text-cyan-900 hover:bg-cyan-200 border border-cyan-300'
+                      }`}
+                    >
+                      <UserPlus className="w-3 h-3" />
+                      <span>Mitra Baru ({newCustomerCount})</span>
+                    </button>
+                  )}
+
                   {invalidCount > 0 && (
-                    <span className="text-[11px] px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-semibold">
-                      {invalidCount} Perlu Dicek
-                    </span>
+                    <button
+                      onClick={() => setActiveFilter('invalid')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer ${
+                        activeFilter === 'invalid'
+                          ? 'bg-rose-700 text-white'
+                          : 'bg-rose-100 text-rose-900 hover:bg-rose-200 border border-rose-300'
+                      }`}
+                    >
+                      <AlertCircle className="w-3 h-3" />
+                      <span>Perlu Dicek ({invalidCount})</span>
+                    </button>
                   )}
                 </div>
-                <span className="text-[11px] text-slate-500 font-mono">
+
+                <span className="text-[11px] text-slate-500 font-mono truncate max-w-xs">
                   File: {fileName}
                 </span>
               </div>
 
+              {/* Data Table */}
               <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto shadow-xs max-h-72">
                 <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 sticky top-0">
+                  <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 sticky top-0 z-10">
                     <tr>
-                      <th className="p-2.5">ID & Pelanggan</th>
+                      <th className="p-2.5">ID & Nama Perusahaan dari Excel</th>
                       <th className="p-2.5">Periode</th>
                       <th className="p-2.5 text-right">Meter Awal</th>
                       <th className="p-2.5 text-right">Meter Akhir</th>
                       <th className="p-2.5 text-right">Volume (m³)</th>
                       <th className="p-2.5">Status Tracking</th>
-                      <th className="p-2.5">Validasi</th>
+                      <th className="p-2.5 text-center">Status Nama di Website</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {parsedRows.map((row, idx) => (
+                    {displayedRows.map((row, idx) => (
                       <tr
                         key={idx}
-                        className={row.isValid ? 'hover:bg-slate-50' : 'bg-rose-50/50'}
+                        className={
+                          !row.isValid
+                            ? 'bg-rose-50/60'
+                            : row.isNameUpdated
+                            ? 'bg-amber-50/60'
+                            : row.isNewCustomer
+                            ? 'bg-cyan-50/60'
+                            : 'hover:bg-slate-50'
+                        }
                       >
                         <td className="p-2.5">
-                          <span className="font-mono font-bold text-slate-900 block">
-                            {row.id_pelanggan}
-                          </span>
-                          <span className="text-[11px] text-slate-600 truncate block max-w-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-bold text-slate-900">
+                              {row.id_pelanggan}
+                            </span>
+                          </div>
+                          <span className="text-xs font-semibold text-slate-800 truncate block max-w-sm">
                             {row.nama_perusahaan}
                           </span>
                         </td>
@@ -411,16 +629,33 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                             {row.status_progress}
                           </span>
                         </td>
-                        <td className="p-2.5 whitespace-nowrap">
-                          {row.isValid ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>OK</span>
-                            </span>
-                          ) : (
+                        <td className="p-2.5 text-center whitespace-nowrap">
+                          {!row.isValid ? (
                             <span className="inline-flex items-center gap-1 text-[11px] text-rose-600 font-medium">
                               <AlertCircle className="w-3.5 h-3.5" />
                               <span>{row.errorMessage}</span>
+                            </span>
+                          ) : row.isNameUpdated ? (
+                            <div className="flex flex-col items-center">
+                              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold border border-amber-300">
+                                <Sparkles className="w-3 h-3 text-amber-700" />
+                                <span>Update Nama Baru</span>
+                              </span>
+                              {row.previous_nama_perusahaan && (
+                                <span className="text-[10px] text-slate-500 line-through mt-0.5 max-w-[160px] truncate" title={row.previous_nama_perusahaan}>
+                                  Lama: {row.previous_nama_perusahaan}
+                                </span>
+                              )}
+                            </div>
+                          ) : row.isNewCustomer ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-800 font-bold border border-cyan-300">
+                              <UserPlus className="w-3 h-3 text-cyan-700" />
+                              <span>Mitra Baru</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Sesuai Database</span>
                             </span>
                           )}
                         </td>
@@ -434,32 +669,36 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+        <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+            className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
           >
             Batal
           </button>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
             {parsedRows.length > 0 && (
               <button
                 type="button"
                 disabled={isProcessing || validCount === 0}
                 onClick={handleCommitBatch}
-                className="py-2 px-5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto py-2.5 px-6 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 {isProcessing ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Menyimpan ke Database...</span>
+                    <span>Menyimpan & Menyinkronkan Nama...</span>
                   </>
                 ) : (
                   <>
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Proses & Simpan Semua Data ({validCount} Industri)</span>
+                    <span>
+                      Proses & Simpan ({validCount} Rekap
+                      {syncCompanyName && updatedNameCount > 0 ? ` + ${updatedNameCount} Ganti Nama` : ''}
+                      {syncCompanyName && newCustomerCount > 0 ? ` + ${newCustomerCount} Mitra Baru` : ''})
+                    </span>
                   </>
                 )}
               </button>
