@@ -31,7 +31,14 @@ export const CustomerPage: React.FC = () => {
       const matched = pelangganList.find(
         p => p.id_pelanggan.toLowerCase() === savedCustomer.id_pelanggan.toLowerCase()
       );
-      setCustomer(matched || savedCustomer);
+      if (matched) {
+        setCustomer(matched);
+        if (matched.nama_perusahaan !== savedCustomer.nama_perusahaan) {
+          localStorage.setItem('aetra_customer_session', JSON.stringify(matched));
+        }
+      } else {
+        setCustomer(savedCustomer);
+      }
     }
   }, [pelangganList]);
 
