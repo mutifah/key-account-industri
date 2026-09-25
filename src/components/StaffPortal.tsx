@@ -650,13 +650,22 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                 Data kredensial login portal mandiri pelanggan (ID Pelanggan & Password) serta kontak PIC
               </p>
             </div>
-            <button
-              onClick={() => onOpenCustomerModal(null)}
-              className="px-3.5 py-1.5 text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Registrasi Pelanggan Baru</span>
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={onOpenExcelModal}
+                className="px-3.5 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>Upload Excel & Sinkronisasi Nama</span>
+              </button>
+              <button
+                onClick={() => onOpenCustomerModal(null)}
+                className="px-3.5 py-1.5 text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Registrasi Pelanggan Baru</span>
+              </button>
+            </div>
           </div>
 
           <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
