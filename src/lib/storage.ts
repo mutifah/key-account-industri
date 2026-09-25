@@ -76,9 +76,9 @@ export async function getPelangganList(): Promise<PelangganIndustri[]> {
 
 export async function savePelanggan(item: PelangganIndustri): Promise<PelangganIndustri> {
   const current = getLocal<PelangganIndustri[]>(LS_PELANGGAN, INITIAL_PELANGGAN);
-  const exists = current.some(p => p.id_pelanggan === item.id_pelanggan);
+  const exists = current.some(p => p.id_pelanggan.toLowerCase() === item.id_pelanggan.toLowerCase());
   const updated = exists 
-    ? current.map(p => p.id_pelanggan === item.id_pelanggan ? item : p)
+    ? current.map(p => p.id_pelanggan.toLowerCase() === item.id_pelanggan.toLowerCase() ? { ...p, ...item } : p)
     : [item, ...current];
   setLocal(LS_PELANGGAN, updated);
 
@@ -91,6 +91,44 @@ export async function savePelanggan(item: PelangganIndustri): Promise<PelangganI
     }
   }
   return item;
+}
+
+export async function saveBatchPelanggan(customers: PelangganIndustri[]): Promise<PelangganIndustri[]> {
+  const current = getLocal<PelangganIndustri[]>(LS_PELANGGAN, INITIAL_PELANGGAN);
+  let updated = [...current];
+
+  customers.forEach(cust => {
+    const idx = updated.findIndex(p => p.id_pelanggan.toLowerCase() === cust.id_pelanggan.toLowerCase());
+    if (idx >= 0) {
+      updated[idx] = {
+        ...updated[idx],
+        ...cust,
+        // preserve password or other fields if not provided
+        password: cust.password || updated[idx].password,
+        no_meter: cust.no_meter || updated[idx].no_meter,
+        bidang_usaha: cust.bidang_usaha || updated[idx].bidang_usaha,
+        alamat_kawasan: cust.alamat_kawasan || updated[idx].alamat_kawasan,
+        zona_distribusi: cust.zona_distribusi || updated[idx].zona_distribusi,
+        pic_nama: cust.pic_nama || updated[idx].pic_nama,
+        pic_telepon: cust.pic_telepon || updated[idx].pic_telepon,
+        email: cust.email || updated[idx].email
+      };
+    } else {
+      updated.push(cust);
+    }
+  });
+
+  setLocal(LS_PELANGGAN, updated);
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      await supabase.from('pelanggan_industri').upsert(customers);
+    } catch (e) {
+      console.error('Supabase batch upsert pelanggan error', e);
+    }
+  }
+  return updated;
 }
 
 export async function deletePelanggan(id_pelanggan: string): Promise<boolean> {
