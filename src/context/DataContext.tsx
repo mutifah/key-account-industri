@@ -16,6 +16,7 @@ import {
   getPemakaianList,
   savePemakaian,
   saveBatchPemakaian,
+  saveBatchPelanggan,
   deletePemakaian,
   getLabResults,
   saveLabResult,
@@ -43,7 +44,7 @@ interface DataContextType {
 
   // Handlers
   handleSavePemakaian: (data: Omit<PemakaianAir, 'id'> & { id?: string }) => Promise<void>;
-  handleBatchSavePemakaian: (items: (Omit<PemakaianAir, 'id'> & { id?: string })[]) => Promise<void>;
+  handleBatchSavePemakaian: (items: (Omit<PemakaianAir, 'id'> & { id?: string })[], customersToUpdate?: PelangganIndustri[]) => Promise<void>;
   handleDeletePemakaian: (id: string) => Promise<void>;
   handleVerifyPemakaian: (item: PemakaianAir) => Promise<void>;
   handleUpdateStatusProgress: (item: PemakaianAir, nextStatus: StatusProgressMeter) => Promise<void>;
@@ -190,9 +191,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await loadData();
   };
 
-  const handleBatchSavePemakaian = async (items: (Omit<PemakaianAir, 'id'> & { id?: string })[]) => {
-    await saveBatchPemakaian(items);
+  const handleBatchSavePemakaian = async (
+    items: (Omit<PemakaianAir, 'id'> & { id?: string })[],
+    customersToUpdate?: PelangganIndustri[]
+  ) => {
+    if (customersToUpdate && customersToUpdate.length > 0) {
+      await saveBatchPelanggan(customersToUpdate);
+    }
+    if (items.length > 0) {
+      await saveBatchPemakaian(items);
+    }
     await loadData();
+
+    // Sync localStorage customer session if logged in customer's company name was updated
+    try {
+      const stored = localStorage.getItem('aetra_customer_session');
+      if (stored && customersToUpdate && customersToUpdate.length > 0) {
+        const sessionCust = JSON.parse(stored);
+        const match = customersToUpdate.find(
+          c => c.id_pelanggan.toLowerCase() === sessionCust.id_pelanggan?.toLowerCase()
+        );
+        if (match) {
+          localStorage.setItem('aetra_customer_session', JSON.stringify({
+            ...sessionCust,
+            nama_perusahaan: match.nama_perusahaan
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn('Customer session sync error', e);
+    }
   };
 
   const handleDeletePemakaian = async (id: string) => {
