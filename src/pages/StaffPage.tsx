@@ -26,6 +26,7 @@ export const StaffPage: React.FC = () => {
     handleDeleteCustomer,
     openCertificateModal,
     handleToggleInfoPublish,
+    handleToggleInfoBanner,
     handleVerifyPemakaian,
     handleUpdateStatusProgress,
     setIsDeployModalOpen
@@ -71,6 +72,7 @@ export const StaffPage: React.FC = () => {
             onDeleteCustomer={handleDeleteCustomer}
             onOpenCertificate={openCertificateModal}
             onToggleInfoPublish={handleToggleInfoPublish}
+            onToggleInfoBanner={handleToggleInfoBanner}
             onVerifyPemakaian={handleVerifyPemakaian}
             onUpdateStatusProgress={handleUpdateStatusProgress}
           />
