@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Lock,
   Building2,
@@ -14,13 +14,15 @@ import {
   User,
   MapPin,
   HelpCircle,
-  MessageSquare
+  MessageSquare,
+  Sparkles
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PelangganIndustri } from '../types';
 import { loginCustomer } from '../lib/auth';
 import { useData } from '../context/DataContext';
 import { AetraLogo } from './AetraLogo';
+import { getNextCustomerId } from '../lib/idGenerator';
 
 interface CustomerLoginProps {
   pelangganList: PelangganIndustri[];
@@ -46,9 +48,8 @@ export const CustomerLogin: React.FC<CustomerLoginProps> = ({
   const [showLoginPassword, setShowLoginPassword] = useState(false);
 
   // Form State: Register
-  const nextSuggestedId = `AETRA-IND-${String(pelangganList.length + 1).padStart(3, '0')}`;
   const [regForm, setRegForm] = useState({
-    id_pelanggan: nextSuggestedId,
+    id_pelanggan: getNextCustomerId(pelangganList),
     nama_perusahaan: '',
     bidang_usaha: 'Makanan & Minuman',
     alamat_kawasan: '',
@@ -61,6 +62,17 @@ export const CustomerLogin: React.FC<CustomerLoginProps> = ({
     confirm_password: ''
   });
   const [showRegPassword, setShowRegPassword] = useState(false);
+
+  // Auto-generate sequential ID whenever entering register mode or when customer list updates
+  useEffect(() => {
+    if (mode === 'register') {
+      const nextId = getNextCustomerId(pelangganList);
+      setRegForm(prev => ({
+        ...prev,
+        id_pelanggan: nextId
+      }));
+    }
+  }, [mode, pelangganList]);
 
   // Form State: Forgot Password
   const [forgotIdentifier, setForgotIdentifier] = useState('');
@@ -374,16 +386,28 @@ export const CustomerLogin: React.FC<CustomerLoginProps> = ({
               <form onSubmit={handleRegisterSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      ID Pelanggan
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={regForm.id_pelanggan}
-                      onChange={(e) => setRegForm({ ...regForm, id_pelanggan: e.target.value.toUpperCase() })}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-cyan-600"
-                    />
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-slate-700">
+                        ID Pelanggan (Auto-Generate)
+                      </label>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        <Sparkles className="w-3 h-3 text-emerald-600" />
+                        Auto Sesuai Urutan
+                      </span>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        required
+                        readOnly
+                        value={regForm.id_pelanggan}
+                        className="w-full px-3 py-2 bg-slate-100 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 cursor-not-allowed select-all"
+                        title="ID Pelanggan diterbitkan otomatis berurutan sesuai urutan akun terdaftar"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Nomor ID akun otomatis berurutan: <strong className="text-slate-800 font-mono">{regForm.id_pelanggan}</strong> (tidak perlu tebak/input manual).
+                    </p>
                   </div>
 
                   <div>
