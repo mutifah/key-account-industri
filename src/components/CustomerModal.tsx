@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Building2, KeyRound } from 'lucide-react';
+import { X, Building2, KeyRound, Sparkles } from 'lucide-react';
 import { PelangganIndustri } from '../types';
+import { getNextCustomerId } from '../lib/idGenerator';
 
 interface CustomerModalProps {
   isOpen: boolean;
@@ -42,9 +43,8 @@ export const CustomerModal: React.FC<CustomerModalProps> = ({
       setNoMeter(initialData.no_meter);
       setPassword(initialData.password || 'aetra123');
     } else {
-      const nextNum = existingIds.length + 1;
-      const formattedNum = String(nextNum).padStart(3, '0');
-      setIdPelanggan(`AETRA-IND-${formattedNum}`);
+      const nextId = getNextCustomerId(existingIds);
+      setIdPelanggan(nextId);
       setNamaPerusahaan('');
       setBidangUsaha('');
       setAlamatKawasan('');
