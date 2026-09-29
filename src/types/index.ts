@@ -37,36 +37,50 @@ export interface PemakaianAir {
   created_at?: string;
 }
 
+export type KategoriUjiLab = 'Reservoar' | 'Industri' | 'Pompa Booster' | 'Uji Khusus Pabrik';
+
 export interface HasilLabHarian {
   id: string;
+  judul_dokumen?: string;
+  kategori_lab: KategoriUjiLab; // 'Reservoar' | 'Industri' | 'Pompa Booster' | 'Uji Khusus Pabrik'
+  id_pelanggan_khusus?: string; // ID Pelanggan jika uji khusus pabrik (personalized)
+  nama_perusahaan_khusus?: string; // Nama perusahaan jika uji khusus
   tanggal_uji: string;
-  waktu_sampling: string;
+  waktu_sampling?: string;
   lokasi_sampling: string;
-  ph: number; // Baku mutu: 6.5 - 8.5
-  kekeruhan_ntu: number; // Baku mutu: < 3.0 NTU
-  sisa_khlor_mg_l: number; // Baku mutu: 0.2 - 0.5 mg/L
-  tds_mg_l: number; // Baku mutu: < 300 mg/L
-  suhu_celsius: number;
-  e_coli_cfu: number; // Baku mutu: 0 CFU/100ml
-  rasa_bau: string;
-  status_kelayakan: string;
-  nama_analis_lab: string;
+  nama_analis_lab?: string;
   no_sertifikat_lab: string;
   catatan?: string;
+  pdf_url?: string;
+  pdf_filename?: string;
+  pdf_size?: string;
+  status_kelayakan?: string;
+  ph?: number; // Baku mutu: 6.5 - 8.5
+  kekeruhan_ntu?: number; // Baku mutu: < 3.0 NTU
+  sisa_khlor_mg_l?: number; // Baku mutu: 0.2 - 0.5 mg/L
+  tds_mg_l?: number; // Baku mutu: < 300 mg/L
+  suhu_celsius?: number;
+  e_coli_cfu?: number; // Baku mutu: 0 CFU/100ml
+  rasa_bau?: string;
   created_at?: string;
 }
 
 export type TipeInfoPelayanan = 
+  | 'Pemadaman Aliran Air'
+  | 'Perbaikan Pipa Darurat'
   | 'Pemeliharaan Jaringan' 
   | 'Flushing Pipa' 
   | 'Penyesuaian Tekanan' 
   | 'Pemberitahuan Resmi'
-  | 'Pemberitahuan Tagihan';
+  | 'Pemberitahuan Tagihan'
+  | 'Lain-lain';
 
 export type StatusAliran = 
   | 'Normal Bertekanan Stabil' 
   | 'Penurunan Tekanan Sementara' 
-  | 'Terganggu Terjadwal';
+  | 'Terganggu Terjadwal'
+  | 'Pemadaman Sementara Terjadwal'
+  | 'Penghentian Darurat';
 
 export interface InfoPelayanan {
   id: string;
@@ -82,6 +96,7 @@ export interface InfoPelayanan {
   pic_nama: string;
   pic_kontak: string;
   status_publikasi: boolean;
+  tampilkan_banner?: boolean;
   created_at?: string;
 }
 
