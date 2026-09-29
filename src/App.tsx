@@ -58,6 +58,7 @@ function MainApp() {
     setIsLabModalOpen,
     editingLab,
     handleSaveLab,
+    labModalKategori,
     // Info modal
     isInfoModalOpen,
     setIsInfoModalOpen,
@@ -129,6 +130,8 @@ function MainApp() {
         onClose={() => setIsLabModalOpen(false)}
         onSave={handleSaveLab}
         initialData={editingLab}
+        pelangganList={pelangganList}
+        initialKategori={labModalKategori}
       />
 
       <ServiceInfoModal
