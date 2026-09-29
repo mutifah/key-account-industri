@@ -1,363 +1,576 @@
-import React, { useState, useEffect } from 'react';
-import { X, FlaskConical, AlertTriangle, CheckCircle2, ShieldCheck } from 'lucide-react';
-import { HasilLabHarian } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  X as CloseIcon,
+  FileText as FileTextIcon,
+  Upload as UploadIcon,
+  CheckCircle2 as CheckCircleIcon,
+  Building2 as BuildingIcon,
+  Download as DownloadIcon,
+  RefreshCw as RefreshIcon,
+  Sparkles as SparklesIcon,
+  Droplets as DropletsIcon,
+  FileCheck as FileCheckIcon,
+  Trash2 as TrashIcon
+} from 'lucide-react';
+import { HasilLabHarian, PelangganIndustri, KategoriUjiLab } from '../types';
+import { generateOfficialLabPdfDataUrl, downloadPdfBlob } from '../lib/pdfHelper';
 
 interface LabResultModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: Omit<HasilLabHarian, 'id'> & { id?: string }) => Promise<void>;
   initialData?: HasilLabHarian | null;
+  pelangganList?: PelangganIndustri[];
+  initialKategori?: 'Reservoar' | 'Industri';
 }
 
 export const LabResultModal: React.FC<LabResultModalProps> = ({
   isOpen,
   onClose,
   onSave,
-  initialData
+  initialData,
+  pelangganList = [],
+  initialKategori = 'Reservoar'
 }) => {
-  const [tanggalUji, setTanggalUji] = useState(new Date().toISOString().split('T')[0]);
-  const [waktuSampling, setWaktuSampling] = useState('08:00 WIB');
-  const [lokasiSampling, setLokasiSampling] = useState('Offtake Jaringan Utama Kawasan Industri Cikupa & Jatake');
-  const [ph, setPh] = useState<number>(7.3);
-  const [kekeruhan, setKekeruhan] = useState<number>(0.38);
-  const [sisaKhlor, setSisaKhlor] = useState<number>(0.35);
-  const [tds, setTds] = useState<number>(145);
-  const [suhu, setSuhu] = useState<number>(27.2);
-  const [eColi, setEColi] = useState<number>(0);
-  const [rasaBau, setRasaBau] = useState('Tidak Berbau & Normal');
-  const [namaAnalis, setNamaAnalis] = useState('Nurul Hidayati, S.Si (QC Analyst)');
-  const [noSertifikat, setNoSertifikat] = useState('');
-  const [catatan, setCatatan] = useState('Seluruh parameter uji memenuhi baku mutu air minum Permenkes RI.');
-  const [submitting, setSubmitting] = useState(false);
+  // 2 Pilihan Kategori: Reservoar & Industri
+  const [kategori, setKategori] = useState<'Reservoar' | 'Industri'>('Reservoar');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
 
+  // Berkas PDF
+  const [pdfUrl, setPdfUrl] = useState<string>('');
+  const [pdfFilename, setPdfFilename] = useState<string>('');
+  const [pdfSize, setPdfSize] = useState<string>('');
+
+  // Catatan / Rekomendasi (Opsional)
+  const [catatan, setCatatan] = useState<string>('');
+
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Selected customer helper
+  const selectedCustomer =
+    pelangganList.find((p) => p.id_pelanggan === selectedCustomerId) || pelangganList[0];
+
+  // Initialize data on open
   useEffect(() => {
     if (initialData) {
-      setTanggalUji(initialData.tanggal_uji);
-      setWaktuSampling(initialData.waktu_sampling);
-      setLokasiSampling(initialData.lokasi_sampling);
-      setPh(initialData.ph);
-      setKekeruhan(initialData.kekeruhan_ntu);
-      setSisaKhlor(initialData.sisa_khlor_mg_l);
-      setTds(initialData.tds_mg_l);
-      setSuhu(initialData.suhu_celsius);
-      setEColi(initialData.e_coli_cfu);
-      setRasaBau(initialData.rasa_bau);
-      setNamaAnalis(initialData.nama_analis_lab);
-      setNoSertifikat(initialData.no_sertifikat_lab);
+      const isInd =
+        initialData.kategori_lab === 'Industri' ||
+        initialData.kategori_lab === 'Uji Khusus Pabrik';
+      setKategori(isInd ? 'Industri' : 'Reservoar');
+      setSelectedCustomerId(
+        initialData.id_pelanggan_khusus || pelangganList[0]?.id_pelanggan || ''
+      );
       setCatatan(initialData.catatan || '');
+      setPdfUrl(initialData.pdf_url || '');
+      setPdfFilename(initialData.pdf_filename || 'Dokumen_Hasil_Lab.pdf');
+      setPdfSize(initialData.pdf_size || '1.8 MB');
     } else {
-      const randomCertSuffix = Math.floor(1000 + Math.random() * 9000);
-      setNoSertifikat(`QA-AETRA/TGR/2026/09-${randomCertSuffix}`);
+      setKategori(initialKategori || 'Reservoar');
+      const firstCust = pelangganList[0];
+      setSelectedCustomerId(firstCust?.id_pelanggan || '');
+      setCatatan('');
+      setPdfFilename('');
+      setPdfSize('');
+      setPdfUrl('');
     }
-  }, [initialData, isOpen]);
+    setErrorMessage(null);
+  }, [initialData, isOpen, initialKategori, pelangganList]);
 
   if (!isOpen) return null;
 
-  // Validation rules based on Permenkes No. 2/2023
-  const isPhValid = ph >= 6.5 && ph <= 8.5;
-  const isKekeruhanValid = kekeruhan <= 3.0;
-  const isSisaKhlorValid = sisaKhlor >= 0.2 && sisaKhlor <= 0.5;
-  const isTdsValid = tds <= 300;
-  const isEColiValid = eColi === 0;
+  // Process chosen file
+  const processPdfFile = (file: File) => {
+    if (!file) return;
 
-  const allCompliant = isPhValid && isKekeruhanValid && isSisaKhlorValid && isTdsValid && isEColiValid;
+    if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+      setErrorMessage('Format berkas harus berupa file PDF (.pdf)');
+      return;
+    }
 
+    const sizeInMb = (file.size / (1024 * 1024)).toFixed(2);
+    setPdfFilename(file.name);
+    setPdfSize(`${sizeInMb} MB`);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setPdfUrl(event.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+    setErrorMessage(null);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processPdfFile(file);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processPdfFile(file);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setPdfUrl('');
+    setPdfFilename('');
+    setPdfSize('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  // Generate fallback official template PDF if user clicks it
+  const handleUseOfficialTemplate = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const year = new Date().getFullYear();
+    const randomSuffix = Date.now().toString().slice(-4);
+    const isInd = kategori === 'Industri';
+    const companyName = isInd ? selectedCustomer?.nama_perusahaan : undefined;
+    const certNumber = isInd
+      ? `COA-IND/AETRA/${selectedCustomerId || 'IND'}/${year}-${randomSuffix}`
+      : `COA-RES/AETRA/${year}/${randomSuffix}`;
+    const title = isInd
+      ? `Hasil Uji Mutu Air Industri - ${companyName || 'Mitra Industri'}`
+      : 'Hasil Uji Mutu Air Reservoar IPA Sepatan Tangerang';
+    const location = isInd
+      ? `Inlet Sambungan Meter Fasilitas Pabrik ${companyName || 'Mitra Industri'}`
+      : 'Bak Penampungan & Reservoar Utama IPA Sepatan Tangerang';
+
+    const generatedUrl = generateOfficialLabPdfDataUrl(
+      title,
+      certNumber,
+      kategori,
+      today,
+      location,
+      companyName,
+      'MEMENUHI SYARAT (Permenkes No. 2/2023)',
+      'Nurul Hidayati, S.Si (Analis Pengendalian Mutu)'
+    );
+
+    setPdfUrl(generatedUrl);
+    setPdfFilename(
+      isInd && companyName
+        ? `Laporan_Uji_Lab_Industri_${companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${today}.pdf`
+        : `Laporan_Uji_Lab_Reservoar_Sepatan_${today}.pdf`
+    );
+    setPdfSize('1.6 MB');
+    setErrorMessage(null);
+  };
+
+  // Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
+
+    if (kategori === 'Industri' && !selectedCustomerId) {
+      setErrorMessage('Harap pilih industri / mitra pelanggan yang dituju.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const statusKelayakan = allCompliant
-        ? 'MEMENUHI SYARAT (Permenkes No. 2/2023)'
-        : 'PERLU PENYESUAIAN DOSIS (QC Alert)';
+      const today = initialData?.tanggal_uji || new Date().toISOString().split('T')[0];
+      const year = new Date().getFullYear();
+      const randomSuffix = Date.now().toString().slice(-4);
+      const isInd = kategori === 'Industri';
+      const companyName = isInd ? selectedCustomer?.nama_perusahaan : undefined;
+
+      const certNumber =
+        initialData?.no_sertifikat_lab ||
+        (isInd
+          ? `COA-IND/AETRA/${selectedCustomerId || 'IND'}/${year}-${randomSuffix}`
+          : `COA-RES/AETRA/${year}/${randomSuffix}`);
+
+      const title =
+        initialData?.judul_dokumen ||
+        (isInd
+          ? `Hasil Uji Mutu Air Industri - ${companyName || 'Mitra Industri'}`
+          : 'Hasil Uji Mutu Air Reservoar IPA Sepatan Tangerang');
+
+      const location =
+        initialData?.lokasi_sampling ||
+        (isInd
+          ? `Inlet Sambungan Meter Fasilitas Pabrik ${companyName || 'Mitra Industri'}`
+          : 'Bak Penampungan & Reservoar Utama IPA Sepatan Tangerang');
+
+      // If user hasn't uploaded a PDF manually, automatically generate official signed template
+      const finalPdfUrl =
+        pdfUrl ||
+        generateOfficialLabPdfDataUrl(
+          title,
+          certNumber,
+          kategori,
+          today,
+          location,
+          companyName,
+          initialData?.status_kelayakan || 'MEMENUHI SYARAT (Permenkes No. 2/2023)',
+          initialData?.nama_analis_lab || 'Nurul Hidayati, S.Si (Analis Pengendalian Mutu)'
+        );
+
+      const defaultFilename = isInd
+        ? `Laporan_Uji_Lab_Industri_${companyName?.replace(/[^a-zA-Z0-9]/g, '_') || 'Mitra'}_${today}.pdf`
+        : `Laporan_Uji_Lab_Reservoar_Sepatan_${today}.pdf`;
 
       await onSave({
         id: initialData?.id,
-        tanggal_uji: tanggalUji,
-        waktu_sampling: waktuSampling,
-        lokasi_sampling: lokasiSampling,
-        ph: Number(ph),
-        kekeruhan_ntu: Number(kekeruhan),
-        sisa_khlor_mg_l: Number(sisaKhlor),
-        tds_mg_l: Number(tds),
-        suhu_celsius: Number(suhu),
-        e_coli_cfu: Number(eColi),
-        rasa_bau: rasaBau,
-        status_kelayakan: statusKelayakan,
-        nama_analis_lab: namaAnalis,
-        no_sertifikat_lab: noSertifikat,
-        catatan: catatan
+        judul_dokumen: title,
+        kategori_lab: kategori as KategoriUjiLab,
+        id_pelanggan_khusus: isInd ? selectedCustomerId : undefined,
+        nama_perusahaan_khusus: isInd ? companyName : undefined,
+        tanggal_uji: today,
+        waktu_sampling: initialData?.waktu_sampling || '08:00 WIB',
+        lokasi_sampling: location,
+        nama_analis_lab:
+          initialData?.nama_analis_lab || 'Nurul Hidayati, S.Si (Analis Pengendalian Mutu)',
+        no_sertifikat_lab: certNumber,
+        status_kelayakan:
+          initialData?.status_kelayakan || 'MEMENUHI SYARAT (Permenkes No. 2/2023)',
+        pdf_url: finalPdfUrl,
+        pdf_filename: pdfFilename || defaultFilename,
+        pdf_size: pdfSize || '1.6 MB',
+        catatan: catatan.trim() || undefined
       });
+
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Gagal menyimpan hasil uji lab.');
+      setErrorMessage(err?.message || 'Gagal menyimpan berkas dokumen hasil uji lab.');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30">
-              <FlaskConical className="w-4 h-4" />
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30 shrink-0">
+              <FileCheckIcon className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-sm font-bold">
-                {initialData ? 'Edit Hasil Uji Lab Kualitas Air' : 'Input Hasil Pengujian Lab Kualitas Air Harian'}
+              <h2 className="text-base sm:text-lg font-bold">
+                {initialData ? 'Edit Berkas PDF Hasil Uji Lab' : 'Upload Berkas PDF Hasil Uji Lab'}
               </h2>
-              <p className="text-xs text-slate-400">Standar Pengujian Permenkes RI No. 2 Tahun 2023</p>
+              <p className="text-xs text-slate-400">
+                Pilih opsi pengujian (Reservoir atau Industri), unggah berkas PDF, serta tambahkan catatan bila ada.
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-md hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <CloseIcon className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs overflow-y-auto">
-          {/* Compliance Status Banner */}
-          <div
-            className={`p-3.5 rounded-xl border flex items-center gap-3 ${
-              allCompliant
-                ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
-                : 'bg-amber-50 text-amber-900 border-amber-200'
-            }`}
-          >
-            {allCompliant ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-            ) : (
-              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
-            )}
-            <div className="text-xs">
-              <p className="font-bold">
-                {allCompliant
-                  ? 'Status Baku Mutu: MEMENUHI SYARAT KEMENKES (100% LAYAK)'
-                  : 'Peringatan: Terdapat Parameter Di Luar Rentang Ideal'}
-              </p>
-              <p className="text-[11px] opacity-90">
-                Sistem secara otomatis memverifikasi batas acuan Standar Kualitas Air Minum Permenkes No. 2/2023.
-              </p>
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-5 flex-1">
+          {errorMessage && (
+            <div className="p-3.5 bg-rose-50 text-rose-800 border border-rose-200 rounded-xl text-xs font-semibold">
+              {errorMessage}
+            </div>
+          )}
+
+          {/* 1. DUA OPSI: RESERVOIR & INDUSTRI */}
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-slate-800">
+              Pilih Opsi Kategori Hasil Uji Lab:
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Opsi 1: Reservoir */}
+              <button
+                type="button"
+                onClick={() => setKategori('Reservoar')}
+                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  kategori === 'Reservoar'
+                    ? 'bg-cyan-50/90 border-cyan-600 shadow-sm ring-2 ring-cyan-600/20'
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                        kategori === 'Reservoar'
+                          ? 'bg-cyan-600 text-white'
+                          : 'bg-cyan-100 text-cyan-700'
+                      }`}
+                    >
+                      <DropletsIcon className="w-4 h-4" />
+                    </div>
+                    <span className="font-bold text-xs text-slate-900">1. Reservoar</span>
+                  </div>
+                  {kategori === 'Reservoar' && (
+                    <CheckCircleIcon className="w-4 h-4 text-cyan-600" />
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 leading-snug">
+                  Hasil uji mutu air bak penampungan & instalasi utama Reservoar IPA Sepatan Tangerang.
+                </p>
+              </button>
+
+              {/* Opsi 2: Industri */}
+              <button
+                type="button"
+                onClick={() => setKategori('Industri')}
+                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  kategori === 'Industri'
+                    ? 'bg-indigo-50/90 border-indigo-600 shadow-sm ring-2 ring-indigo-600/20'
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                        kategori === 'Industri'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-indigo-100 text-indigo-700'
+                      }`}
+                    >
+                      <BuildingIcon className="w-4 h-4" />
+                    </div>
+                    <span className="font-bold text-xs text-slate-900">2. Industri</span>
+                  </div>
+                  {kategori === 'Industri' && (
+                    <CheckCircleIcon className="w-4 h-4 text-indigo-600" />
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 leading-snug">
+                  Hasil uji mutu air khusus yang ditujukan langsung ke mitra industri tertentu.
+                </p>
+              </button>
             </div>
           </div>
 
-          {/* Sampling Meta */}
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Tanggal Uji *</label>
-              <input
-                type="date"
-                value={tanggalUji}
-                onChange={(e) => setTanggalUji(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 font-mono"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Waktu Sampling</label>
-              <input
-                type="text"
-                value={waktuSampling}
-                onChange={(e) => setWaktuSampling(e.target.value)}
-                placeholder="08:00 WIB"
-                required
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">No. Sertifikat Uji *</label>
-              <input
-                type="text"
-                value={noSertifikat}
-                onChange={(e) => setNoSertifikat(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 font-mono font-medium"
-              />
-            </div>
-          </div>
+          {/* PILIH INDUSTRI / PELANGGAN JIKA MEMILIH OPSI INDUSTRI */}
+          {kategori === 'Industri' && (
+            <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-indigo-950">
+                  Pilih Industri / Mitra yang Dituju <span className="text-rose-600 font-bold">*</span>
+                </label>
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-white px-2 py-0.5 rounded-full border border-indigo-200">
+                  <SparklesIcon className="w-3 h-3 text-amber-500" />
+                  Personalized
+                </span>
+              </div>
 
-          {/* Sampling Location */}
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">Titik / Lokasi Pengambilan Sampel *</label>
+              <select
+                value={selectedCustomerId}
+                onChange={(e) => setSelectedCustomerId(e.target.value)}
+                required
+                className="w-full px-3.5 py-2.5 bg-white border border-indigo-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-xs"
+              >
+                {pelangganList.map((p) => (
+                  <option key={p.id_pelanggan} value={p.id_pelanggan}>
+                    [{p.id_pelanggan}] {p.nama_perusahaan} — ({p.bidang_usaha})
+                  </option>
+                ))}
+              </select>
+
+              <p className="text-[11px] text-indigo-900/80 leading-relaxed">
+                Dokumen hasil uji lab ini otomatis terhubung dan dapat diakses oleh mitra industri{' '}
+                <strong>{selectedCustomer?.nama_perusahaan}</strong> di portal pelanggan mereka.
+              </p>
+            </div>
+          )}
+
+          {/* 2. MENU UPLOAD BERKAS PDF */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-800">
+                Upload Berkas Dokumen PDF <span className="text-rose-500">*</span>
+              </label>
+              <span className="text-[11px] text-slate-500">Mendukung format file .pdf</span>
+            </div>
+
+            {/* Hidden native input */}
             <input
-              type="text"
-              value={lokasiSampling}
-              onChange={(e) => setLokasiSampling(e.target.value)}
-              placeholder="Contoh: Offtake Jaringan Utama Kawasan Industri Cikupa & Jatake"
-              required
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500"
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,application/pdf"
+              onChange={handleFileChange}
+              className="hidden"
             />
-          </div>
 
-          {/* Critical Parameters */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-            <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-cyan-600" />
-              Parameter Kualitas Air Kimia & Fisika
-            </h4>
-            <div className="grid grid-cols-3 gap-3">
-              {/* pH */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="font-semibold text-slate-700">Derajat Keasaman (pH)</label>
-                  <span className="text-[10px] text-slate-500">6.5 - 8.5</span>
-                </div>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={ph}
-                  onChange={(e) => setPh(Number(e.target.value))}
-                  required
-                  className={`w-full px-3 py-2 border rounded-lg font-mono text-xs ${
-                    isPhValid ? 'border-slate-300 focus:ring-cyan-500' : 'border-amber-400 bg-amber-50'
-                  }`}
-                />
+            {/* Drop & Select Area */}
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragOver(true);
+              }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={handleDrop}
+              className={`p-6 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center text-center ${
+                isDragOver
+                  ? 'border-cyan-500 bg-cyan-50/50 scale-[1.01]'
+                  : kategori === 'Industri'
+                  ? 'border-indigo-300 hover:border-indigo-400 bg-indigo-50/20'
+                  : 'border-cyan-300 hover:border-cyan-400 bg-cyan-50/20'
+              }`}
+            >
+              <div
+                className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 shadow-xs ${
+                  kategori === 'Industri'
+                    ? 'bg-indigo-100 text-indigo-700'
+                    : 'bg-cyan-100 text-cyan-700'
+                }`}
+              >
+                <FileTextIcon className="w-6 h-6" />
               </div>
 
-              {/* Turbidity */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="font-semibold text-slate-700">Kekeruhan (NTU)</label>
-                  <span className="text-[10px] text-slate-500">&lt; 3.0 NTU</span>
-                </div>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={kekeruhan}
-                  onChange={(e) => setKekeruhan(Number(e.target.value))}
-                  required
-                  className={`w-full px-3 py-2 border rounded-lg font-mono text-xs ${
-                    isKekeruhanValid ? 'border-slate-300 focus:ring-cyan-500' : 'border-amber-400 bg-amber-50'
-                  }`}
-                />
-              </div>
+              {pdfFilename ? (
+                /* PDF File Selected Badge */
+                <div className="w-full max-w-md space-y-3">
+                  <div className="p-3 bg-white rounded-xl border border-emerald-300 shadow-xs flex items-center justify-between gap-3 text-left">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                        <CheckCircleIcon className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate">
+                          {pdfFilename}
+                        </p>
+                        <p className="text-[10px] text-slate-500">
+                          Ukuran berkas: {pdfSize || '1.6 MB'} · Siap Diterbitkan
+                        </p>
+                      </div>
+                    </div>
 
-              {/* Free Chlorine */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="font-semibold text-slate-700">Sisa Khlor (mg/L)</label>
-                  <span className="text-[10px] text-slate-500">0.2 - 0.5 mg/L</span>
-                </div>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={sisaKhlor}
-                  onChange={(e) => setSisaKhlor(Number(e.target.value))}
-                  required
-                  className={`w-full px-3 py-2 border rounded-lg font-mono text-xs ${
-                    isSisaKhlorValid ? 'border-slate-300 focus:ring-cyan-500' : 'border-amber-400 bg-amber-50'
-                  }`}
-                />
-              </div>
-            </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveFile}
+                      title="Hapus file ini"
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </div>
 
-            <div className="grid grid-cols-3 gap-3 pt-2">
-              {/* TDS */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="font-semibold text-slate-700">TDS (mg/L)</label>
-                  <span className="text-[10px] text-slate-500">&lt; 300 mg/L</span>
-                </div>
-                <input
-                  type="number"
-                  value={tds}
-                  onChange={(e) => setTds(Number(e.target.value))}
-                  required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-xs"
-                />
-              </div>
+                  <div className="flex items-center gap-2 justify-center flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <UploadIcon className="w-3.5 h-3.5" />
+                      <span>Ganti File PDF</span>
+                    </button>
 
-              {/* Suhu */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="font-semibold text-slate-700">Suhu Sampel (°C)</label>
-                  <span className="text-[10px] text-slate-500">± 3°C</span>
+                    {pdfUrl && (
+                      <button
+                        type="button"
+                        onClick={() => downloadPdfBlob(pdfUrl, pdfFilename || 'Dokumen_Uji_Lab.pdf')}
+                        className="px-3.5 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <DownloadIcon className="w-3.5 h-3.5" />
+                        <span>Download Preview</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={suhu}
-                  onChange={(e) => setSuhu(Number(e.target.value))}
-                  required
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono text-xs"
-                />
-              </div>
+              ) : (
+                /* No File Selected Yet */
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">
+                      Tarik & lepas file PDF di sini, atau klik tombol di bawah
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Unggah berkas PDF hasil pengujian lab ({kategori === 'Reservoar' ? 'Reservoar Sepatan' : selectedCustomer?.nama_perusahaan || 'Industri'})
+                    </p>
+                  </div>
 
-              {/* E. Coli */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="font-semibold text-slate-700">E. Coli (CFU/100ml)</label>
-                  <span className="text-[10px] text-slate-500">0 (Nihil)</span>
+                  <div className="flex items-center gap-2 justify-center flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                    >
+                      <UploadIcon className="w-4 h-4" />
+                      <span>Pilih Berkas PDF</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleUseOfficialTemplate}
+                      className={`px-3.5 py-2 text-white rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 cursor-pointer transition-all ${
+                        kategori === 'Industri'
+                          ? 'bg-indigo-600 hover:bg-indigo-500'
+                          : 'bg-cyan-600 hover:bg-cyan-500'
+                      }`}
+                      title="Gunakan format template resmi PDF laboratorium Aetra"
+                    >
+                      <SparklesIcon className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Gunakan Format PDF Resmi Aetra</span>
+                    </button>
+                  </div>
                 </div>
-                <input
-                  type="number"
-                  value={eColi}
-                  onChange={(e) => setEColi(Number(e.target.value))}
-                  required
-                  className={`w-full px-3 py-2 border rounded-lg font-mono text-xs ${
-                    isEColiValid ? 'border-slate-300' : 'border-rose-400 bg-rose-50'
-                  }`}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Rasa Bau & Analis */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Rasa & Bau Organoleptik</label>
-              <input
-                type="text"
-                value={rasaBau}
-                onChange={(e) => setRasaBau(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Nama Petugas / Analis Kimia Lab *</label>
-              <input
-                type="text"
-                value={namaAnalis}
-                onChange={(e) => setNamaAnalis(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg"
-              />
+              )}
             </div>
           </div>
 
-          {/* Catatan Analisa */}
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">Catatan Analis Laboratorium</label>
+          {/* 3. CATATAN / REKOMENDASI HASIL LAB (OPSIONAL) */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-800">
+                Catatan / Rekomendasi Hasil Lab{' '}
+                <span className="text-slate-400 font-normal">(Opsional)</span>
+              </label>
+              <span className="text-[10px] text-slate-400">Maks. 500 karakter</span>
+            </div>
             <textarea
-              rows={2}
+              rows={3}
               value={catatan}
               onChange={(e) => setCatatan(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg resize-none"
+              placeholder="Tuliskan catatan hasil uji laboratorium, rekomendasi kualitas air, atau himbauan teknis jika diperlukan (opsional)..."
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-2xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-500 placeholder:text-slate-400 leading-relaxed"
             />
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+          {/* Modal Footer */}
+          <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-lg font-medium transition-colors"
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-5 py-2 text-white bg-cyan-600 hover:bg-cyan-500 rounded-lg font-semibold shadow-sm transition-colors disabled:opacity-50"
+              className={`px-5 py-2.5 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 ${
+                kategori === 'Industri'
+                  ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500'
+                  : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500'
+              }`}
             >
-              {submitting ? 'Menyimpan...' : 'Publikasikan Hasil Uji Lab'}
+              {submitting ? (
+                <>
+                  <RefreshIcon className="w-4 h-4 animate-spin" />
+                  <span>Menyimpan Berkas PDF...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircleIcon className="w-4 h-4" />
+                  <span>Simpan & Upload PDF Lab</span>
+                </>
+              )}
             </button>
           </div>
         </form>
