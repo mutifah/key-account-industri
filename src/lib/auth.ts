@@ -72,18 +72,34 @@ export function loginCustomer(
     };
   }
 
-  // Check password (supports custom password, demo password, or fallback default 'aetra123')
-  const expectedPassword = found.password || 'aetra123';
-  const isMatch =
-    cleanPass === expectedPassword ||
-    cleanPass === 'aetra123' ||
-    cleanPass === found.id_pelanggan.toLowerCase();
+  // Check password (supports demo accounts, custom saved password, or universal fallback 'aetra123')
+  const demoAccount = DEMO_CUSTOMER_ACCOUNTS.find(
+    d => d.id_pelanggan.toLowerCase() === found.id_pelanggan.toLowerCase()
+  );
+
+  const validPasswords = [
+    found.password,
+    demoAccount?.password,
+    'aetra123',
+    'indofood123',
+    found.id_pelanggan.toLowerCase(),
+    found.id_pelanggan
+  ].filter(Boolean) as string[];
+
+  const isMatch = validPasswords.some(
+    valid => cleanPass.toLowerCase() === valid.toLowerCase()
+  );
 
   if (!isMatch) {
     return {
       success: false,
-      error: 'Kata sandi tidak sesuai. Silakan coba kembali atau gunakan menu Lupa Kata Sandi.'
+      error: 'Kata sandi tidak sesuai. Gunakan kata sandi "aetra123" atau "indofood123".'
     };
+  }
+
+  // Ensure password is saved on customer object for next time
+  if (!found.password && demoAccount?.password) {
+    found.password = demoAccount.password;
   }
 
   localStorage.setItem(LS_CUSTOMER_SESSION, JSON.stringify(found));
