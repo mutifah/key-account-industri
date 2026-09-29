@@ -10,8 +10,6 @@ import {
   TrendingUp,
   Activity,
   ShieldCheck,
-  Send,
-  HelpCircle,
   BarChart3,
   PhoneCall,
   Flame,
@@ -60,7 +58,7 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
   onCreateTiket,
   onOpenDeployModal
 }) => {
-  const [activeTab, setActiveTab] = useState<'pemakaian' | 'lab' | 'pelayanan' | 'tiket'>('pemakaian');
+  const [activeTab, setActiveTab] = useState<'pemakaian' | 'lab' | 'pelayanan'>('pemakaian');
   const [activeLabTab, setActiveLabTab] = useState<'Reservoar' | 'Industri'>('Reservoar');
   const [dismissedBannerIds, setDismissedBannerIds] = useState<string[]>([]);
 
@@ -109,13 +107,6 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
     downloadPdfBlob(url, lab.pdf_filename || `Laporan_Lab_${lab.no_sertifikat_lab.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
   };
 
-  // Tiket Form
-  const [tiketPerihal, setTiketPerihal] = useState('');
-  const [tiketKategori, setTiketKategori] = useState('Kalibrasi & Pengukuran');
-  const [tiketPesan, setTiketPesan] = useState('');
-  const [submittingTiket, setSubmittingTiket] = useState(false);
-  const [tiketSuccess, setTiketSuccess] = useState(false);
-
   // Pemakaian records for current logged-in customer
   const customerPemakaian = useMemo(() => {
     return pemakaianList
@@ -124,10 +115,6 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
   }, [pemakaianList, currentCustomer]);
 
   // Customer Tickets
-  const customerTickets = useMemo(() => {
-    return tiketList.filter(t => t.id_pelanggan.toLowerCase() === currentCustomer.id_pelanggan.toLowerCase());
-  }, [tiketList, currentCustomer]);
-
   // Latest water quality reading
   const latestLab = useMemo(() => {
     return labResults.length > 0 ? labResults[0] : null;
@@ -141,31 +128,6 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
     if (!latestPemakaian || !previousPemakaian || previousPemakaian.total_m3 === 0) return 0;
     return ((latestPemakaian.total_m3 - previousPemakaian.total_m3) / previousPemakaian.total_m3) * 100;
   }, [latestPemakaian, previousPemakaian]);
-
-  const handleTiketSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tiketPerihal || !tiketPesan) return;
-    setSubmittingTiket(true);
-    try {
-      await onCreateTiket({
-        id_pelanggan: currentCustomer.id_pelanggan,
-        perihal: tiketPerihal,
-        kategori: tiketKategori,
-        pesan: tiketPesan,
-        status: 'Diproses',
-        respon_petugas: 'Permohonan telah diterima oleh Key Account Executive dan sedang dikoordinasikan dengan tim teknis.'
-      });
-      setTiketPerihal('');
-      setTiketPesan('');
-      setTiketSuccess(true);
-      setTimeout(() => setTiketSuccess(false), 4000);
-    } catch (e) {
-      console.error(e);
-      alert('Gagal mengirim tiket.');
-    } finally {
-      setSubmittingTiket(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -358,23 +320,6 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
         >
           <Info className="w-4 h-4" />
           <span>Info Jaringan & Pasokan</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('tiket')}
-          className={`py-3.5 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 cursor-pointer ${
-            activeTab === 'tiket'
-              ? 'border-cyan-600 text-cyan-700'
-              : 'border-transparent text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <HelpCircle className="w-4 h-4" />
-          <span>Layanan & Pengaduan PIC</span>
-          {customerTickets.length > 0 && (
-            <span className="px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-mono">
-              {customerTickets.length}
-            </span>
-          )}
         </button>
       </div>
 
@@ -782,16 +727,9 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                         Belum Ada Dokumen Sampling Industri untuk {currentCustomer.nama_perusahaan}
                       </h4>
                       <p className="text-xs text-indigo-800/80 max-w-md mx-auto mt-1 leading-relaxed">
-                        Sampling uji lab industri (in-plant sampling) dilakukan secara berkala langsung pada titik sambungan tandon pabrik atas permintaan atau jadwal audit mitra industri.
+                        Sampling uji lab industri (in-plant sampling) dilakukan secara berkala langsung pada titik sambungan tandon pabrik oleh tim laboratorium PT Aetra Air Tangerang.
                       </p>
                     </div>
-                    <button
-                      onClick={() => setActiveTab('tiket')}
-                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-all shadow-xs inline-flex items-center gap-2 cursor-pointer"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>Ajukan Jadwal Uji Mutu Industri</span>
-                    </button>
                   </div>
                 )}
               </div>
@@ -838,137 +776,6 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: LAYANAN & PENGADUAN PIC */}
-      {activeTab === 'tiket' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Ticket Form */}
-          <div className="lg:col-span-1 bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">
-                Buat Tiket Layanan Industri
-              </h3>
-              <p className="text-xs text-slate-500">
-                Pengajuan tera kalibrasi flow meter, uji mutu khusus, atau permohonan teknis
-              </p>
-            </div>
-
-            {tiketSuccess && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Tiket berhasil dikirim ke Key Account Executive!</span>
-              </div>
-            )}
-
-            <form onSubmit={handleTiketSubmit} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Kategori Permohonan
-                </label>
-                <select
-                  value={tiketKategori}
-                  onChange={(e) => setTiketKategori(e.target.value)}
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs"
-                >
-                  <option value="Kalibrasi & Akurasi Meter">Kalibrasi & Akurasi Meter</option>
-                  <option value="Permohonan Uji Lab Khusus">Permohonan Uji Lab Khusus</option>
-                  <option value="Penyesuaian Debit Aliran">Penyesuaian Debit Aliran</option>
-                  <option value="Lainnya">Lainnya</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Perihal / Judul
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={tiketPerihal}
-                  onChange={(e) => setTiketPerihal(e.target.value)}
-                  placeholder="Contoh: Permohonan Uji Tera Bersama"
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Detail Permohonan & Keterangan
-                </label>
-                <textarea
-                  rows={4}
-                  required
-                  value={tiketPesan}
-                  onChange={(e) => setTiketPesan(e.target.value)}
-                  placeholder="Jelaskan kebutuhan teknis pabrik..."
-                  className="w-full p-2 bg-slate-50 border border-slate-300 rounded-lg text-xs"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submittingTiket}
-                className="w-full py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60 text-white font-semibold rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>{submittingTiket ? 'Mengirim...' : 'Kirim Tiket Layanan'}</span>
-              </button>
-            </form>
-          </div>
-
-          {/* Ticket List */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
-              <h3 className="text-sm font-bold text-slate-900">
-                Daftar Tiket & Respon Petugas
-              </h3>
-              <p className="text-xs text-slate-500">
-                Histori tindak lanjut permohonan dari Key Account Executive PT Aetra Air Tangerang
-              </p>
-            </div>
-
-            {customerTickets.length === 0 ? (
-              <div className="bg-slate-50 rounded-xl border border-slate-200 p-8 text-center text-xs text-slate-500">
-                Belum ada tiket layanan yang diajukan oleh perusahaan Anda.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {customerTickets.map((t) => (
-                  <div
-                    key={t.id}
-                    className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs space-y-2 text-xs"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-slate-500">{t.kategori}</span>
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          t.status === 'Selesai'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-blue-100 text-blue-800'
-                        }`}
-                      >
-                        {t.status}
-                      </span>
-                    </div>
-                    <h4 className="font-bold text-slate-900 text-sm">{t.perihal}</h4>
-                    <p className="text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                      {t.pesan}
-                    </p>
-                    {t.respon_petugas && (
-                      <div className="mt-2 p-2.5 rounded-lg bg-cyan-50 border border-cyan-100 text-cyan-950">
-                        <span className="font-bold block text-[11px] text-cyan-800 mb-0.5">
-                          Tanggapan Petugas Aetra:
-                        </span>
-                        <p>{t.respon_petugas}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       )}
