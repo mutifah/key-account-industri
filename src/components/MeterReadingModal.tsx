@@ -121,7 +121,7 @@ export const MeterReadingModal: React.FC<MeterReadingModalProps> = ({
               <h2 className="text-sm font-bold">
                 {initialData ? 'Edit Data Pembacaan Meter Air' : 'Input Stand Meter Air Industri'}
               </h2>
-              <p className="text-xs text-slate-400">Pencatatan real-time stand meter dan tracking progress 3 tahap</p>
+              <p className="text-xs text-slate-400">Pencatatan real-time stand meter fisik pelanggan industri</p>
             </div>
           </div>
           <button
@@ -255,35 +255,16 @@ export const MeterReadingModal: React.FC<MeterReadingModalProps> = ({
             </span>
           </div>
 
-          {/* Progress Tracking Status & Staff */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block font-bold text-slate-800 mb-1">
-                Status Tracking Progress *
-              </label>
-              <select
-                value={statusProgress}
-                onChange={(e) => setStatusProgress(e.target.value as StatusProgressMeter)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500 bg-white font-semibold"
-              >
-                <option value="Penerbitan BPM">1. Penerbitan BPM (Surat Terbit)</option>
-                <option value="Pembacaan Meter">2. Pembacaan Meter (Stand Tercatat)</option>
-                <option value="Terverifikasi">3. Terverifikasi (Disahkan Supervisor)</option>
-              </select>
-              <span className="text-[10px] text-slate-500 mt-0.5 block">
-                Status ini akan langsung ter-update di portal pelanggan industri
-              </span>
-            </div>
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Nama Staf Pencatat</label>
-              <input
-                type="text"
-                value={namaStaf}
-                onChange={(e) => setNamaStaf(e.target.value)}
-                required
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500"
-              />
-            </div>
+          {/* Staff */}
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">Nama Staf Pencatat *</label>
+            <input
+              type="text"
+              value={namaStaf}
+              onChange={(e) => setNamaStaf(e.target.value)}
+              required
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-cyan-500"
+            />
           </div>
 
           {/* Notes */}
