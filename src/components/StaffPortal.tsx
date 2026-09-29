@@ -44,7 +44,7 @@ interface StaffPortalProps {
   infoPelayanan: InfoPelayanan[];
   tiketList: TiketLayanan[];
   onOpenMeterModal: (initialData?: PemakaianAir | null) => void;
-  onOpenLabModal: (initialData?: HasilLabHarian | null, kategori?: 'Reservoar' | 'Industri') => void;
+  onOpenLabModal: (initialData?: HasilLabHarian | null, kategori?: 'Reservoar' | 'Pompa Booster' | 'Industri') => void;
   onOpenInfoModal: (initialData?: InfoPelayanan | null) => void;
   onOpenCustomerModal: (initialData?: PelangganIndustri | null) => void;
   onOpenExcelModal: () => void;
@@ -95,8 +95,9 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
     return map;
   }, [pelangganList]);
 
-  // Lab Category counts (Reservoar & Industri Personalized)
-  const reservoarCount = useMemo(() => labResults.filter(l => (l.kategori_lab || 'Reservoar') === 'Reservoar' || l.kategori_lab === 'Pompa Booster').length, [labResults]);
+  // Lab Category counts (Reservoar, Booster, & Industri Personalized)
+  const reservoarCount = useMemo(() => labResults.filter(l => (l.kategori_lab || 'Reservoar') === 'Reservoar').length, [labResults]);
+  const boosterCount = useMemo(() => labResults.filter(l => l.kategori_lab === 'Pompa Booster').length, [labResults]);
   const industriCount = useMemo(() => labResults.filter(l => l.kategori_lab === 'Industri' || l.kategori_lab === 'Uji Khusus Pabrik').length, [labResults]);
 
   // Download Lab PDF Helper
@@ -141,12 +142,14 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
         (l.nama_perusahaan_khusus && l.nama_perusahaan_khusus.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (l.id_pelanggan_khusus && l.id_pelanggan_khusus.toLowerCase().includes(searchQuery.toLowerCase()));
 
-      const isReservoar = (l.kategori_lab || 'Reservoar') === 'Reservoar' || l.kategori_lab === 'Pompa Booster';
+      const isReservoar = (l.kategori_lab || 'Reservoar') === 'Reservoar';
+      const isBooster = l.kategori_lab === 'Pompa Booster';
       const isIndustri = l.kategori_lab === 'Industri' || l.kategori_lab === 'Uji Khusus Pabrik';
 
       const matchKategori =
         filterLabKategori === 'Semua' ||
         (filterLabKategori === 'Reservoar' && isReservoar) ||
+        (filterLabKategori === 'Pompa Booster' && isBooster) ||
         (filterLabKategori === 'Industri' && isIndustri);
 
       return matchSearch && matchKategori;
@@ -513,6 +516,22 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
 
               <button
                 type="button"
+                onClick={() => setFilterLabKategori('Pompa Booster')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  filterLabKategori === 'Pompa Booster'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-200'
+                }`}
+              >
+                <Gauge className="w-3.5 h-3.5" />
+                <span>Hasil Uji Lab Booster</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${filterLabKategori === 'Pompa Booster' ? 'bg-white/20' : 'bg-amber-200 text-amber-950'}`}>
+                  {boosterCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setFilterLabKategori('Industri')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
                   filterLabKategori === 'Industri'
@@ -567,7 +586,13 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                         </td>
 
                         <td className="p-3">
-                          {!isKhusus && (
+                          {l.kategori_lab === 'Pompa Booster' && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                              <Gauge className="w-3 h-3 text-amber-700" />
+                              <span>Hasil Uji Lab Booster</span>
+                            </span>
+                          )}
+                          {(l.kategori_lab === 'Reservoar' || (!isKhusus && l.kategori_lab !== 'Pompa Booster')) && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-cyan-100 text-cyan-900 border border-cyan-300">
                               <FlaskConical className="w-3 h-3 text-cyan-700" />
                               <span>Hasil Uji Lab Reservoar</span>
@@ -652,7 +677,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                               <FileSpreadsheet className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => onOpenLabModal(l, isKhusus ? 'Industri' : 'Reservoar')}
+                              onClick={() => onOpenLabModal(l, isKhusus ? 'Industri' : l.kategori_lab === 'Pompa Booster' ? 'Pompa Booster' : 'Reservoar')}
                               title="Edit Data / Ganti PDF"
                               className="p-1 rounded text-slate-600 hover:bg-slate-100 cursor-pointer"
                             >
