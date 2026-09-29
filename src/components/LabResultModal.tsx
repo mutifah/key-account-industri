@@ -9,6 +9,7 @@ import {
   RefreshCw as RefreshIcon,
   Sparkles as SparklesIcon,
   Droplets as DropletsIcon,
+  Gauge as GaugeIcon,
   FileCheck as FileCheckIcon,
   Trash2 as TrashIcon
 } from 'lucide-react';
@@ -21,7 +22,7 @@ interface LabResultModalProps {
   onSave: (data: Omit<HasilLabHarian, 'id'> & { id?: string }) => Promise<void>;
   initialData?: HasilLabHarian | null;
   pelangganList?: PelangganIndustri[];
-  initialKategori?: 'Reservoar' | 'Industri';
+  initialKategori?: 'Reservoar' | 'Pompa Booster' | 'Industri';
 }
 
 export const LabResultModal: React.FC<LabResultModalProps> = ({
@@ -32,8 +33,8 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
   pelangganList = [],
   initialKategori = 'Reservoar'
 }) => {
-  // 2 Pilihan Kategori: Reservoar & Industri
-  const [kategori, setKategori] = useState<'Reservoar' | 'Industri'>('Reservoar');
+  // 3 Pilihan Kategori: Reservoar, Pompa Booster, & Industri
+  const [kategori, setKategori] = useState<'Reservoar' | 'Pompa Booster' | 'Industri'>('Reservoar');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
 
   // Berkas PDF
@@ -59,7 +60,8 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
       const isInd =
         initialData.kategori_lab === 'Industri' ||
         initialData.kategori_lab === 'Uji Khusus Pabrik';
-      setKategori(isInd ? 'Industri' : 'Reservoar');
+      const isBst = initialData.kategori_lab === 'Pompa Booster';
+      setKategori(isInd ? 'Industri' : isBst ? 'Pompa Booster' : 'Reservoar');
       setSelectedCustomerId(
         initialData.id_pelanggan_khusus || pelangganList[0]?.id_pelanggan || ''
       );
@@ -135,15 +137,25 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
     const year = new Date().getFullYear();
     const randomSuffix = Date.now().toString().slice(-4);
     const isInd = kategori === 'Industri';
+    const isBst = kategori === 'Pompa Booster';
     const companyName = isInd ? selectedCustomer?.nama_perusahaan : undefined;
+
     const certNumber = isInd
       ? `COA-IND/AETRA/${selectedCustomerId || 'IND'}/${year}-${randomSuffix}`
+      : isBst
+      ? `COA-BST/AETRA/${year}/${randomSuffix}`
       : `COA-RES/AETRA/${year}/${randomSuffix}`;
+
     const title = isInd
       ? `Hasil Uji Mutu Air Industri - ${companyName || 'Mitra Industri'}`
+      : isBst
+      ? 'Hasil Uji Mutu Air Stasiun Pompa Booster Distribusi'
       : 'Hasil Uji Mutu Air Reservoar IPA Sepatan Tangerang';
+
     const location = isInd
       ? `Inlet Sambungan Meter Fasilitas Pabrik ${companyName || 'Mitra Industri'}`
+      : isBst
+      ? 'Titik Pengaliran Outlet Stasiun Pompa Booster Distribusi Sepatan'
       : 'Bak Penampungan & Reservoar Utama IPA Sepatan Tangerang';
 
     const generatedUrl = generateOfficialLabPdfDataUrl(
@@ -161,6 +173,8 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
     setPdfFilename(
       isInd && companyName
         ? `Laporan_Uji_Lab_Industri_${companyName.replace(/[^a-zA-Z0-9]/g, '_')}_${today}.pdf`
+        : isBst
+        ? `Laporan_Uji_Lab_Pompa_Booster_${today}.pdf`
         : `Laporan_Uji_Lab_Reservoar_Sepatan_${today}.pdf`
     );
     setPdfSize('1.6 MB');
@@ -183,24 +197,31 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
       const year = new Date().getFullYear();
       const randomSuffix = Date.now().toString().slice(-4);
       const isInd = kategori === 'Industri';
+      const isBst = kategori === 'Pompa Booster';
       const companyName = isInd ? selectedCustomer?.nama_perusahaan : undefined;
 
       const certNumber =
         initialData?.no_sertifikat_lab ||
         (isInd
           ? `COA-IND/AETRA/${selectedCustomerId || 'IND'}/${year}-${randomSuffix}`
+          : isBst
+          ? `COA-BST/AETRA/${year}/${randomSuffix}`
           : `COA-RES/AETRA/${year}/${randomSuffix}`);
 
       const title =
         initialData?.judul_dokumen ||
         (isInd
           ? `Hasil Uji Mutu Air Industri - ${companyName || 'Mitra Industri'}`
+          : isBst
+          ? 'Hasil Uji Mutu Air Stasiun Pompa Booster Distribusi'
           : 'Hasil Uji Mutu Air Reservoar IPA Sepatan Tangerang');
 
       const location =
         initialData?.lokasi_sampling ||
         (isInd
           ? `Inlet Sambungan Meter Fasilitas Pabrik ${companyName || 'Mitra Industri'}`
+          : isBst
+          ? 'Titik Pengaliran Outlet Stasiun Pompa Booster Distribusi Sepatan'
           : 'Bak Penampungan & Reservoar Utama IPA Sepatan Tangerang');
 
       // If user hasn't uploaded a PDF manually, automatically generate official signed template
@@ -219,6 +240,8 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
 
       const defaultFilename = isInd
         ? `Laporan_Uji_Lab_Industri_${companyName?.replace(/[^a-zA-Z0-9]/g, '_') || 'Mitra'}_${today}.pdf`
+        : isBst
+        ? `Laporan_Uji_Lab_Pompa_Booster_${today}.pdf`
         : `Laporan_Uji_Lab_Reservoar_Sepatan_${today}.pdf`;
 
       await onSave({
@@ -252,7 +275,7 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
         <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
           <div className="flex items-center gap-3">
@@ -264,7 +287,7 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
                 {initialData ? 'Edit Berkas PDF Hasil Uji Lab' : 'Upload Berkas PDF Hasil Uji Lab'}
               </h2>
               <p className="text-xs text-slate-400">
-                Pilih opsi pengujian (Reservoir atau Industri), unggah berkas PDF, serta tambahkan catatan bila ada.
+                Pilih opsi pengujian (Reservoir, Booster, atau Industri), unggah berkas PDF, serta catatan bila ada.
               </p>
             </div>
           </div>
@@ -284,12 +307,12 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
             </div>
           )}
 
-          {/* 1. DUA OPSI: RESERVOIR & INDUSTRI */}
+          {/* 1. TIGA OPSI: RESERVOIR, BOOSTER, & INDUSTRI */}
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-800">
               Pilih Opsi Kategori Hasil Uji Lab:
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
               {/* Opsi 1: Reservoir */}
               <button
                 type="button"
@@ -318,11 +341,43 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
                   )}
                 </div>
                 <p className="text-[11px] text-slate-500 leading-snug">
-                  Hasil uji mutu air bak penampungan & instalasi utama Reservoar IPA Sepatan Tangerang.
+                  Bak penampungan & instalasi utama Reservoar IPA Sepatan Tangerang.
                 </p>
               </button>
 
-              {/* Opsi 2: Industri */}
+              {/* Opsi 2: Pompa Booster */}
+              <button
+                type="button"
+                onClick={() => setKategori('Pompa Booster')}
+                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                  kategori === 'Pompa Booster'
+                    ? 'bg-amber-50/90 border-amber-600 shadow-sm ring-2 ring-amber-600/20'
+                    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center ${
+                        kategori === 'Pompa Booster'
+                          ? 'bg-amber-600 text-white'
+                          : 'bg-amber-100 text-amber-700'
+                      }`}
+                    >
+                      <GaugeIcon className="w-4 h-4" />
+                    </div>
+                    <span className="font-bold text-xs text-slate-900">2. Booster</span>
+                  </div>
+                  {kategori === 'Pompa Booster' && (
+                    <CheckCircleIcon className="w-4 h-4 text-amber-600" />
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 leading-snug">
+                  Stasiun pompa penekan & booster distribusi jaringan industri.
+                </p>
+              </button>
+
+              {/* Opsi 3: Industri */}
               <button
                 type="button"
                 onClick={() => setKategori('Industri')}
@@ -343,14 +398,14 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
                     >
                       <BuildingIcon className="w-4 h-4" />
                     </div>
-                    <span className="font-bold text-xs text-slate-900">2. Industri</span>
+                    <span className="font-bold text-xs text-slate-900">3. Industri</span>
                   </div>
                   {kategori === 'Industri' && (
                     <CheckCircleIcon className="w-4 h-4 text-indigo-600" />
                   )}
                 </div>
                 <p className="text-[11px] text-slate-500 leading-snug">
-                  Hasil uji mutu air khusus yang ditujukan langsung ke mitra industri tertentu.
+                  Pengujian mutu khusus mitra industri tertentu (Personalized).
                 </p>
               </button>
             </div>
@@ -420,6 +475,8 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
                   ? 'border-cyan-500 bg-cyan-50/50 scale-[1.01]'
                   : kategori === 'Industri'
                   ? 'border-indigo-300 hover:border-indigo-400 bg-indigo-50/20'
+                  : kategori === 'Pompa Booster'
+                  ? 'border-amber-300 hover:border-amber-400 bg-amber-50/20'
                   : 'border-cyan-300 hover:border-cyan-400 bg-cyan-50/20'
               }`}
             >
@@ -427,6 +484,8 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
                 className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-3 shadow-xs ${
                   kategori === 'Industri'
                     ? 'bg-indigo-100 text-indigo-700'
+                    : kategori === 'Pompa Booster'
+                    ? 'bg-amber-100 text-amber-700'
                     : 'bg-cyan-100 text-cyan-700'
                 }`}
               >
@@ -491,7 +550,13 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
                       Tarik & lepas file PDF di sini, atau klik tombol di bawah
                     </p>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      Unggah berkas PDF hasil pengujian lab ({kategori === 'Reservoar' ? 'Reservoar Sepatan' : selectedCustomer?.nama_perusahaan || 'Industri'})
+                      Unggah berkas PDF hasil pengujian mutu air ({
+                        kategori === 'Reservoar'
+                          ? 'Reservoar Sepatan'
+                          : kategori === 'Pompa Booster'
+                          ? 'Stasiun Pompa Booster'
+                          : selectedCustomer?.nama_perusahaan || 'Industri'
+                      })
                     </p>
                   </div>
 
@@ -511,6 +576,8 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
                       className={`px-3.5 py-2 text-white rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5 cursor-pointer transition-all ${
                         kategori === 'Industri'
                           ? 'bg-indigo-600 hover:bg-indigo-500'
+                          : kategori === 'Pompa Booster'
+                          ? 'bg-amber-600 hover:bg-amber-500'
                           : 'bg-cyan-600 hover:bg-cyan-500'
                       }`}
                       title="Gunakan format template resmi PDF laboratorium Aetra"
@@ -557,6 +624,8 @@ export const LabResultModal: React.FC<LabResultModalProps> = ({
               className={`px-5 py-2.5 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 ${
                 kategori === 'Industri'
                   ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 hover:from-indigo-500 hover:to-cyan-500'
+                  : kategori === 'Pompa Booster'
+                  ? 'bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500'
                   : 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500'
               }`}
             >
