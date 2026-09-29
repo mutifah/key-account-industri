@@ -16,7 +16,13 @@ import {
   KeyRound,
   FileCheck2,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Download,
+  FileText,
+  Sparkles,
+  AlertTriangle,
+  AlertOctagon,
+  Megaphone
 } from 'lucide-react';
 import {
   PelangganIndustri,
@@ -25,8 +31,10 @@ import {
   InfoPelayanan,
   TiketLayanan,
   StaffUser,
-  StatusProgressMeter
+  StatusProgressMeter,
+  KategoriUjiLab
 } from '../types';
+import { generateOfficialLabPdfDataUrl, downloadPdfBlob } from '../lib/pdfHelper';
 
 interface StaffPortalProps {
   currentStaff?: StaffUser | null;
@@ -36,7 +44,7 @@ interface StaffPortalProps {
   infoPelayanan: InfoPelayanan[];
   tiketList: TiketLayanan[];
   onOpenMeterModal: (initialData?: PemakaianAir | null) => void;
-  onOpenLabModal: (initialData?: HasilLabHarian | null) => void;
+  onOpenLabModal: (initialData?: HasilLabHarian | null, kategori?: 'Reservoar' | 'Industri') => void;
   onOpenInfoModal: (initialData?: InfoPelayanan | null) => void;
   onOpenCustomerModal: (initialData?: PelangganIndustri | null) => void;
   onOpenExcelModal: () => void;
@@ -46,6 +54,7 @@ interface StaffPortalProps {
   onDeleteCustomer: (id: string) => Promise<void>;
   onOpenCertificate: (data: HasilLabHarian) => void;
   onToggleInfoPublish: (info: InfoPelayanan) => Promise<void>;
+  onToggleInfoBanner?: (info: InfoPelayanan) => Promise<void>;
   onVerifyPemakaian: (pemakaian: PemakaianAir) => Promise<void>;
   onUpdateStatusProgress: (pemakaian: PemakaianAir, status: StatusProgressMeter) => Promise<void>;
 }
@@ -68,13 +77,14 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
   onDeleteCustomer,
   onOpenCertificate,
   onToggleInfoPublish,
+  onToggleInfoBanner,
   onVerifyPemakaian,
   onUpdateStatusProgress
 }) => {
   const [activeTab, setActiveTab] = useState<'pemakaian' | 'lab' | 'pelayanan' | 'pelanggan'>('pemakaian');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMonth, setFilterMonth] = useState('Semua');
-  const [filterStatus, setFilterStatus] = useState<string>('Semua');
+  const [filterLabKategori, setFilterLabKategori] = useState<string>('Semua');
 
   // Customer map for quick lookup
   const customerMap = useMemo(() => {
@@ -84,6 +94,26 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
     });
     return map;
   }, [pelangganList]);
+
+  // Lab Category counts (Reservoar & Industri Personalized)
+  const reservoarCount = useMemo(() => labResults.filter(l => (l.kategori_lab || 'Reservoar') === 'Reservoar' || l.kategori_lab === 'Pompa Booster').length, [labResults]);
+  const industriCount = useMemo(() => labResults.filter(l => l.kategori_lab === 'Industri' || l.kategori_lab === 'Uji Khusus Pabrik').length, [labResults]);
+
+  // Download Lab PDF Helper
+  const handleDownloadLabPdf = (lab: HasilLabHarian) => {
+    const isInd = lab.kategori_lab === 'Industri' || lab.kategori_lab === 'Uji Khusus Pabrik';
+    const url = lab.pdf_url || generateOfficialLabPdfDataUrl(
+      lab.judul_dokumen || (isInd ? `Laporan Uji Mutu Air Industri - ${lab.nama_perusahaan_khusus || ''}` : 'Hasil Uji Mutu Air Reservoar IPA Sepatan'),
+      lab.no_sertifikat_lab,
+      lab.kategori_lab || 'Reservoar',
+      lab.tanggal_uji,
+      lab.lokasi_sampling,
+      lab.nama_perusahaan_khusus,
+      lab.status_kelayakan,
+      lab.nama_analis_lab
+    );
+    downloadPdfBlob(url, lab.pdf_filename || `Laporan_Lab_${lab.no_sertifikat_lab.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+  };
 
   // Filtered Pemakaian
   const filteredPemakaian = useMemo(() => {
@@ -96,21 +126,32 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
         (p.no_bpm && p.no_bpm.toLowerCase().includes(searchQuery.toLowerCase())) ||
         p.periode_bulan.toLowerCase().includes(searchQuery.toLowerCase());
       const matchMonth = filterMonth === 'Semua' || p.periode_bulan === filterMonth;
-      const matchStatus = filterStatus === 'Semua' || p.status_progress === filterStatus;
-      return matchSearch && matchMonth && matchStatus;
+      return matchSearch && matchMonth;
     });
-  }, [pemakaianList, customerMap, searchQuery, filterMonth, filterStatus]);
+  }, [pemakaianList, customerMap, searchQuery, filterMonth]);
 
   // Filtered Lab Results
   const filteredLab = useMemo(() => {
     return labResults.filter(l => {
-      return (
+      const matchSearch =
         l.tanggal_uji.includes(searchQuery) ||
         l.lokasi_sampling.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        l.no_sertifikat_lab.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+        l.no_sertifikat_lab.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (l.judul_dokumen && l.judul_dokumen.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (l.nama_perusahaan_khusus && l.nama_perusahaan_khusus.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (l.id_pelanggan_khusus && l.id_pelanggan_khusus.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const isReservoar = (l.kategori_lab || 'Reservoar') === 'Reservoar' || l.kategori_lab === 'Pompa Booster';
+      const isIndustri = l.kategori_lab === 'Industri' || l.kategori_lab === 'Uji Khusus Pabrik';
+
+      const matchKategori =
+        filterLabKategori === 'Semua' ||
+        (filterLabKategori === 'Reservoar' && isReservoar) ||
+        (filterLabKategori === 'Industri' && isIndustri);
+
+      return matchSearch && matchKategori;
     });
-  }, [labResults, searchQuery]);
+  }, [labResults, searchQuery, filterLabKategori]);
 
   // Export to CSV helper
   const exportPemakaianCSV = () => {
@@ -155,7 +196,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                Rekap pemakaian air bulanan via Excel/manual, tracking 3 tahap (BPM - Baca - Terverifikasi), hasil lab harian & info pelayanan.
+                Rekap pemakaian air bulanan via Excel/manual, hasil lab harian & info pelayanan.
               </p>
             </div>
           </div>
@@ -177,10 +218,18 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
             </button>
             <button
               onClick={() => onOpenLabModal(null)}
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg border border-slate-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-xs font-semibold rounded-lg shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Upload Berkas PDF Hasil Uji Lab (Reservoar / Industri)"
             >
-              <FlaskConical className="w-4 h-4 text-cyan-400" />
-              <span>Input Hasil Lab</span>
+              <FileCheck2 className="w-4 h-4 text-cyan-200" />
+              <span>Upload PDF Hasil Uji Lab</span>
+            </button>
+            <button
+              onClick={() => onOpenInfoModal(null)}
+              className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <Megaphone className="w-4 h-4 text-slate-950" />
+              <span>Input Banner Gangguan</span>
             </button>
           </div>
         </div>
@@ -201,7 +250,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
             }`}
           >
             <Gauge className="w-4 h-4" />
-            <span>1. Pemakaian Air & Tracking ({pemakaianList.length})</span>
+            <span>1. Pemakaian Air Bulanan ({pemakaianList.length})</span>
           </button>
 
           <button
@@ -216,7 +265,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
             }`}
           >
             <FlaskConical className="w-4 h-4" />
-            <span>2. Hasil Lab Mutu Air ({labResults.length})</span>
+            <span>2. Hasil Uji Laboratorium ({labResults.length})</span>
           </button>
 
           <button
@@ -251,7 +300,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
         </div>
       </div>
 
-      {/* TAB 1: PEMAKAIAN AIR BULANAN & TRACKING PROGRESS */}
+      {/* TAB 1: PEMAKAIAN AIR BULANAN */}
       {activeTab === 'pemakaian' && (
         <div className="space-y-4">
           {/* Action Toolbar */}
@@ -277,17 +326,6 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                 <option value="Agustus">Agustus</option>
                 <option value="Juli">Juli</option>
                 <option value="Juni">Juni</option>
-              </select>
-
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white text-slate-700"
-              >
-                <option value="Semua">Semua Status Tracking</option>
-                <option value="Penerbitan BPM">Penerbitan BPM</option>
-                <option value="Pembacaan Meter">Pembacaan Meter</option>
-                <option value="Terverifikasi">Terverifikasi</option>
               </select>
             </div>
 
@@ -330,7 +368,6 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                     <th className="p-3 text-right">Meter Awal</th>
                     <th className="p-3 text-right">Meter Akhir</th>
                     <th className="p-3 text-right">Volume (m³)</th>
-                    <th className="p-3 text-center">Tracking Progress (Klik untuk Update)</th>
                     <th className="p-3 text-center">Aksi</th>
                   </tr>
                 </thead>
@@ -371,45 +408,6 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                         <td className="p-3 text-right font-mono font-bold text-cyan-800 text-sm">
                           {p.total_m3.toLocaleString('id-ID')} m³
                         </td>
-                        <td className="p-3 text-center">
-                          <div className="inline-flex items-center gap-1.5">
-                            <select
-                              value={p.status_progress}
-                              onChange={(e) => onUpdateStatusProgress(p, e.target.value as StatusProgressMeter)}
-                              className={`text-[11px] font-bold py-1 px-2.5 rounded-lg border cursor-pointer transition-colors ${
-                                p.status_progress === 'Terverifikasi'
-                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                                  : p.status_progress === 'Pembacaan Meter'
-                                  ? 'bg-amber-50 text-amber-800 border-amber-300'
-                                  : 'bg-indigo-50 text-indigo-800 border-indigo-300'
-                              }`}
-                            >
-                              <option value="Penerbitan BPM">1. Penerbitan BPM</option>
-                              <option value="Pembacaan Meter">2. Pembacaan Meter</option>
-                              <option value="Terverifikasi">3. Terverifikasi</option>
-                            </select>
-
-                            {/* Quick advance shortcut */}
-                            {p.status_progress === 'Penerbitan BPM' && (
-                              <button
-                                onClick={() => onUpdateStatusProgress(p, 'Pembacaan Meter')}
-                                title="Lanjut ke Pembacaan Meter"
-                                className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
-                              >
-                                <ArrowRight className="w-3.5 h-3.5 text-amber-600" />
-                              </button>
-                            )}
-                            {p.status_progress === 'Pembacaan Meter' && (
-                              <button
-                                onClick={() => onUpdateStatusProgress(p, 'Terverifikasi')}
-                                title="Verifikasi Selesai"
-                                className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              </button>
-                            )}
-                          </div>
-                        </td>
                         <td className="p-3 text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1">
                             <button
@@ -449,98 +447,237 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
         </div>
       )}
 
-      {/* TAB 2: HASIL LAB KUALITAS AIR */}
+      {/* TAB 2: HASIL LAB KUALITAS AIR - 2 KATEGORI: RESERVOAR & INDUSTRI (PERSONALIZED) */}
       {activeTab === 'lab' && (
         <div className="space-y-4">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="relative flex-1 sm:w-80">
+          {/* Information & Category Badges Header */}
+          <div className="bg-slate-900 rounded-2xl p-5 text-white border border-slate-800 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-cyan-400" />
+                <span className="text-xs uppercase font-bold text-cyan-400 tracking-wider">
+                  Pengelolaan Dokumen Hasil Uji Laboratorium Mutu Air
+                </span>
+              </div>
+              <h3 className="text-base font-bold text-white">
+                Upload Dokumen PDF Hasil Uji Lab Reservoar & Hasil Uji Lab Industri
+              </h3>
+              <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                Staf laboratorium dapat mengunggah berkas PDF resmi untuk Hasil Uji Lab Reservoar IPA Sepatan maupun Hasil Uji Lab Industri khusus yang ditujukan pada pelanggan industri tertentu.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+              <button
+                onClick={() => onOpenLabModal(null)}
+                className="px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+              >
+                <FileCheck2 className="w-4 h-4 text-cyan-200" />
+                <span>+ Upload PDF Hasil Uji Lab</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Category Filter Pills & Search */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setFilterLabKategori('Semua')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  filterLabKategori === 'Semua'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <span>Semua Kategori</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20">{labResults.length}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFilterLabKategori('Reservoar')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  filterLabKategori === 'Reservoar'
+                    ? 'bg-cyan-700 text-white shadow-xs'
+                    : 'bg-cyan-50 text-cyan-800 hover:bg-cyan-100 border border-cyan-200'
+                }`}
+              >
+                <FlaskConical className="w-3.5 h-3.5" />
+                <span>Hasil Uji Lab Reservoar</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${filterLabKategori === 'Reservoar' ? 'bg-white/20' : 'bg-cyan-200 text-cyan-900'}`}>
+                  {reservoarCount}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFilterLabKategori('Industri')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
+                  filterLabKategori === 'Industri'
+                    ? 'bg-indigo-700 text-white shadow-xs'
+                    : 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100 border border-indigo-200'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Hasil Uji Lab Industri (Personalized)</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${filterLabKategori === 'Industri' ? 'bg-white/20' : 'bg-indigo-200 text-indigo-900'}`}>
+                  {industriCount}
+                </span>
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative flex-1 lg:max-w-xs">
               <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari tanggal / titik sampling / no sertifikat..."
-                className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500"
+                placeholder="Cari laporan / no COA / pabrik..."
+                className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 bg-slate-50 focus:bg-white"
               />
             </div>
-
-            <button
-              onClick={() => onOpenLabModal(null)}
-              className="px-3.5 py-1.5 text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Input Pengujian Lab Baru</span>
-            </button>
           </div>
 
+          {/* Table Hasil Lab dengan Dokumen PDF */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                   <tr>
                     <th className="p-3">Tanggal & Waktu</th>
-                    <th className="p-3">Titik Sampling</th>
-                    <th className="p-3 text-right">pH</th>
-                    <th className="p-3 text-right">Kekeruhan</th>
-                    <th className="p-3 text-right">Khlor (mg/L)</th>
-                    <th className="p-3 text-right">TDS (mg/L)</th>
-                    <th className="p-3 text-center">E. Coli</th>
-                    <th className="p-3">No. Sertifikat</th>
-                    <th className="p-3 text-center">Aksi</th>
+                    <th className="p-3">Kategori & Sasaran</th>
+                    <th className="p-3">Judul Dokumen & Titik Sampling</th>
+                    <th className="p-3">Berkas Dokumen PDF</th>
+                    <th className="p-3">No. Sertifikat / COA</th>
+                    <th className="p-3 text-center">Status Kelayakan</th>
+                    <th className="p-3 text-center">Aksi Dokumen</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {filteredLab.map((l) => (
-                    <tr key={l.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-3 font-mono font-semibold text-slate-900">
-                        {l.tanggal_uji}
-                        <span className="block text-[10px] text-slate-500 font-sans">{l.waktu_sampling}</span>
-                      </td>
-                      <td className="p-3 text-slate-700 max-w-xs truncate">
-                        {l.lokasi_sampling}
-                        <span className="block text-[10px] text-slate-500">Analis: {l.nama_analis_lab}</span>
-                      </td>
-                      <td className="p-3 text-right font-mono font-bold text-slate-900">{l.ph}</td>
-                      <td className="p-3 text-right font-mono font-bold text-emerald-700">{l.kekeruhan_ntu} NTU</td>
-                      <td className="p-3 text-right font-mono font-bold text-cyan-700">{l.sisa_khlor_mg_l}</td>
-                      <td className="p-3 text-right font-mono text-slate-800">{l.tds_mg_l}</td>
-                      <td className="p-3 text-center font-mono font-bold text-emerald-700">{l.e_coli_cfu} CFU</td>
-                      <td className="p-3 font-mono text-cyan-800">{l.no_sertifikat_lab}</td>
-                      <td className="p-3 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => onOpenCertificate(l)}
-                            title="Lihat Sertifikat COA"
-                            className="p-1 rounded text-cyan-700 hover:bg-cyan-50 cursor-pointer"
-                          >
-                            <FileSpreadsheet className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => onOpenLabModal(l)}
-                            title="Edit Data Lab"
-                            className="p-1 rounded text-slate-600 hover:bg-slate-100 cursor-pointer"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm('Hapus hasil pengujian lab ini?')) {
-                                onDeleteLab(l.id);
-                              }
-                            }}
-                            title="Hapus Data Lab"
-                            className="p-1 rounded text-rose-600 hover:bg-rose-50 cursor-pointer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredLab.map((l) => {
+                    const isKhusus = l.kategori_lab === 'Industri' || l.kategori_lab === 'Uji Khusus Pabrik';
+                    return (
+                      <tr key={l.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="p-3 font-mono font-semibold text-slate-900 whitespace-nowrap">
+                          {l.tanggal_uji}
+                          <span className="block text-[10px] text-slate-500 font-sans">{l.waktu_sampling || '08:00 WIB'}</span>
+                        </td>
+
+                        <td className="p-3">
+                          {!isKhusus && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-cyan-100 text-cyan-900 border border-cyan-300">
+                              <FlaskConical className="w-3 h-3 text-cyan-700" />
+                              <span>Hasil Uji Lab Reservoar</span>
+                            </span>
+                          )}
+                          {isKhusus && (
+                            <div className="space-y-1">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-100 text-indigo-900 border border-indigo-300">
+                                <Sparkles className="w-3 h-3 text-indigo-600" />
+                                <span>Hasil Uji Lab Industri</span>
+                              </span>
+                              <div className="font-semibold text-slate-900 flex items-center gap-1 text-[11px]">
+                                <Building2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                                <span className="truncate max-w-[180px]">{l.nama_perusahaan_khusus || 'Pabrik Tertentu'}</span>
+                              </div>
+                              <span className="text-[10px] font-mono text-slate-500 block">ID: {l.id_pelanggan_khusus || '-'}</span>
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="p-3 max-w-xs">
+                          <p className="font-bold text-slate-900 text-xs line-clamp-1">
+                            {l.judul_dokumen || 'Laporan Uji Mutu Air'}
+                          </p>
+                          <span className="block text-[11px] text-slate-600 line-clamp-1">
+                            {l.lokasi_sampling}
+                          </span>
+                          <span className="block text-[10px] text-slate-400">
+                            Analis: {l.nama_analis_lab || 'Nurul Hidayati, S.Si'}
+                          </span>
+                        </td>
+
+                        <td className="p-3 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center shrink-0">
+                              <FileText className="w-4 h-4" />
+                            </div>
+                            <div className="text-left">
+                              <span className="block font-bold text-slate-800 text-[11px] truncate max-w-[150px]">
+                                {l.pdf_filename || 'Dokumen_Uji_Lab.pdf'}
+                              </span>
+                              <span className="text-[10px] text-slate-500">
+                                {l.pdf_size || '1.8 MB'} · PDF
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => handleDownloadLabPdf(l)}
+                              title="Download file PDF ini"
+                              className="p-1.5 rounded-lg bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 transition-colors cursor-pointer ml-1"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+
+                        <td className="p-3 font-mono text-cyan-900 font-semibold text-xs whitespace-nowrap">
+                          {l.no_sertifikat_lab}
+                        </td>
+
+                        <td className="p-3 text-center whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>{l.status_kelayakan || 'MEMENUHI SYARAT'}</span>
+                          </span>
+                        </td>
+
+                        <td className="p-3 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              onClick={() => handleDownloadLabPdf(l)}
+                              title="Unduh File PDF"
+                              className="px-2 py-1 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer flex items-center gap-1"
+                            >
+                              <Download className="w-3 h-3" />
+                              <span>Unduh PDF</span>
+                            </button>
+                            <button
+                              onClick={() => onOpenCertificate(l)}
+                              title="Lihat Pratinjau Lab"
+                              className="p-1 rounded text-cyan-700 hover:bg-cyan-50 cursor-pointer"
+                            >
+                              <FileSpreadsheet className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => onOpenLabModal(l, isKhusus ? 'Industri' : 'Reservoar')}
+                              title="Edit Data / Ganti PDF"
+                              className="p-1 rounded text-slate-600 hover:bg-slate-100 cursor-pointer"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm('Hapus dokumen hasil pengujian lab ini?')) {
+                                  onDeleteLab(l.id);
+                                }
+                              }}
+                              title="Hapus Data Lab"
+                              className="p-1 rounded text-rose-600 hover:bg-rose-50 cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {filteredLab.length === 0 && (
                     <tr>
-                      <td colSpan={9} className="p-8 text-center text-slate-500">
-                        Tidak ada log pengujian lab yang sesuai.
+                      <td colSpan={7} className="p-8 text-center text-slate-500">
+                        Tidak ada dokumen pengujian lab yang sesuai dengan kategori atau filter pencarian.
                       </td>
                     </tr>
                   )}
@@ -551,89 +688,169 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
         </div>
       )}
 
-      {/* TAB 3: INFO PELAYANAN */}
+      {/* TAB 3: PUSAT PENGUMUMAN & BANNER GANGGUAN OPERASIONAL AIR */}
       {activeTab === 'pelayanan' && (
-        <div className="space-y-4">
-          <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">
-                Pusat Pengumuman Pelayanan & Pasokan Air
+        <div className="space-y-5">
+          {/* Header with Quick Action to create announcement */}
+          <div className="bg-slate-900 rounded-2xl p-5 text-white border border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Megaphone className="w-5 h-5 text-amber-400" />
+                <span className="text-xs uppercase font-bold text-amber-400 tracking-wider">
+                  Pengumuman Gangguan & Pemeliharaan Operasional Air
+                </span>
+              </div>
+              <h3 className="text-base font-bold text-white">
+                Kelola Pemberitahuan & Banner Beranda Dashboard Pelanggan
               </h3>
-              <p className="text-xs text-slate-500">
-                Pemberitahuan pemeliharaan jaringan, flushing, dan informasi transmisi bagi pelanggan
+              <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+                Pengumuman mengenai perbaikan pipa darurat, pemeliharaan jaringan, pemadaman terjadwal, dan flushing otomatis ditampilkan mencolok sebagai banner di halaman depan dashboard pelanggan industri.
               </p>
             </div>
+
             <button
               onClick={() => onOpenInfoModal(null)}
-              className="px-3.5 py-1.5 text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-slate-950 text-xs font-black rounded-xl shadow-md transition-all flex items-center gap-2 shrink-0 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Buat Info Baru</span>
+              <span>+ Input Pengumuman / Banner Gangguan</span>
             </button>
           </div>
 
+          {/* Header Summary Bar */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <span className="text-slate-600">
+              Daftar pengumuman resmi operasional air, pemadaman, pemeliharaan, dan pemberitahuan lainnya.
+            </span>
+            <span className="text-slate-500 font-medium shrink-0">
+              Total Pengumuman: <strong className="text-slate-800">{infoPelayanan.length}</strong>
+            </span>
+          </div>
+
+          {/* List of Announcements with Banner Visibility Controls */}
           <div className="space-y-3">
-            {infoPelayanan.map((info) => (
-              <div
-                key={info.id}
-                className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
-              >
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-cyan-800 bg-cyan-50 px-2.5 py-0.5 rounded border border-cyan-200">
-                      {info.tipe}
-                    </span>
-                    <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
-                      {info.tingkat_urgensi}
-                    </span>
-                    <h4 className="text-sm font-bold text-slate-900">
+            {infoPelayanan.map((info) => {
+              const isBannerActive = info.status_publikasi && info.tampilkan_banner !== false;
+              const isUrgent = info.tingkat_urgensi === 'Darurat' || info.tipe === 'Pemadaman Aliran Air';
+
+              return (
+                <div
+                  key={info.id}
+                  className={`bg-white rounded-2xl border p-5 shadow-xs flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 transition-all ${
+                    isBannerActive
+                      ? 'border-amber-300 ring-2 ring-amber-400/20'
+                      : 'border-slate-200'
+                  }`}
+                >
+                  <div className="space-y-2 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-xs font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 ${
+                        isUrgent ? 'bg-rose-100 text-rose-800 border border-rose-300' : 'bg-cyan-50 text-cyan-800 border border-cyan-200'
+                      }`}>
+                        {isUrgent ? <AlertOctagon className="w-3.5 h-3.5 text-rose-600" /> : <AlertTriangle className="w-3.5 h-3.5 text-cyan-600" />}
+                        <span>{info.tipe}</span>
+                      </span>
+
+                      <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                        Urgensi: {info.tingkat_urgensi}
+                      </span>
+
+                      <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
+                        Status Aliran: {info.status_aliran}
+                      </span>
+
+                      {/* Prominent Banner Status Badge */}
+                      {isBannerActive ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+                          <Megaphone className="w-3 h-3 text-emerald-700" />
+                          <span>Tampil di Banner Depan Pelanggan</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                          <span>Tidak Tampil di Banner</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <h4 className="text-sm sm:text-base font-bold text-slate-900">
                       {info.judul}
                     </h4>
+
+                    <p className="text-xs text-slate-600 leading-relaxed max-w-3xl">
+                      {info.deskripsi}
+                    </p>
+
+                    <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1">
+                      <span>Jadwal: <strong className="text-slate-800">{info.tanggal_mulai.replace('T', ' ')}</strong> {info.tanggal_selesai ? `s/d ${info.tanggal_selesai.replace('T', ' ')}` : ''}</span>
+                      <span>Wilayah: <strong className="text-slate-800">{info.wilayah_terdampak}</strong></span>
+                      <span>PIC Siaga: <strong className="text-slate-800">{info.pic_nama}</strong> ({info.pic_kontak})</span>
+                    </div>
+
+                    {info.solusi_mitigasi && (
+                      <p className="text-[11px] text-amber-900 bg-amber-50/80 p-2.5 rounded-xl border border-amber-200">
+                        <strong>Langkah Mitigasi Industri:</strong> {info.solusi_mitigasi}
+                      </p>
+                    )}
                   </div>
 
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    {info.deskripsi}
-                  </p>
+                  {/* Actions & Banner Visibility Toggles */}
+                  <div className="flex items-center gap-2 shrink-0 border-t lg:border-t-0 pt-3 lg:pt-0 w-full lg:w-auto justify-end flex-wrap">
+                    {/* Toggle Banner Button */}
+                    <button
+                      type="button"
+                      onClick={() => onToggleInfoBanner && onToggleInfoBanner(info)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+                        info.tampilkan_banner !== false
+                          ? 'bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300'
+                      }`}
+                      title="Klik untuk mengubah apakah pengumuman ini tampil di banner beranda pelanggan"
+                    >
+                      <Megaphone className="w-3.5 h-3.5" />
+                      <span>{info.tampilkan_banner !== false ? 'Banner Aktif' : 'Pasang Banner'}</span>
+                    </button>
 
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
-                    <span>Wilayah: <strong className="text-slate-700">{info.wilayah_terdampak}</strong></span>
-                    <span>Status: <strong className="text-slate-700">{info.status_aliran}</strong></span>
-                    <span>PIC: {info.pic_nama} ({info.pic_kontak})</span>
+                    {/* Toggle Publish Status */}
+                    <button
+                      type="button"
+                      onClick={() => onToggleInfoPublish(info)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors cursor-pointer ${
+                        info.status_publikasi
+                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-300'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                    >
+                      {info.status_publikasi ? 'Tayang (Aktif)' : 'Draft'}
+                    </button>
+
+                    <button
+                      onClick={() => onOpenInfoModal(info)}
+                      className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 border border-slate-200 cursor-pointer"
+                      title="Edit Pengumuman"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm('Apakah Anda yakin ingin menghapus pengumuman ini?')) {
+                          onDeleteInfo(info.id);
+                        }
+                      }}
+                      className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 border border-rose-200 cursor-pointer"
+                      title="Hapus Pengumuman"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
+              );
+            })}
 
-                <div className="flex items-center gap-2 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 w-full md:w-auto justify-end">
-                  <button
-                    onClick={() => onToggleInfoPublish(info)}
-                    className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-colors cursor-pointer ${
-                      info.status_publikasi
-                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {info.status_publikasi ? 'Tayang (Aktif)' : 'Disembunyikan'}
-                  </button>
-                  <button
-                    onClick={() => onOpenInfoModal(info)}
-                    className="p-1.5 rounded text-slate-600 hover:bg-slate-100 cursor-pointer"
-                    title="Edit"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm('Apakah Anda yakin ingin menghapus pengumuman ini?')) {
-                        onDeleteInfo(info.id);
-                      }
-                    }}
-                    className="p-1.5 rounded text-rose-600 hover:bg-rose-50 cursor-pointer"
-                    title="Hapus"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+            {infoPelayanan.length === 0 && (
+              <div className="bg-white p-8 rounded-xl border border-slate-200 text-center text-slate-500 text-xs">
+                Belum ada pengumuman gangguan operasional. Klik tombol &quot;+ Input Pengumuman / Banner Gangguan&quot; di atas untuk membuat.
               </div>
-            ))}
+            )}
           </div>
         </div>
       )}
