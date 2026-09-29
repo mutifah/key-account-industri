@@ -77,9 +77,9 @@ interface DataContextType {
   setIsLabModalOpen: (open: boolean) => void;
   editingLab: HasilLabHarian | null;
   setEditingLab: (item: HasilLabHarian | null) => void;
-  labModalKategori: 'Reservoar' | 'Industri';
-  setLabModalKategori: (kategori: 'Reservoar' | 'Industri') => void;
-  openLabModal: (item?: HasilLabHarian | null, kategori?: 'Reservoar' | 'Industri') => void;
+  labModalKategori: 'Reservoar' | 'Pompa Booster' | 'Industri';
+  setLabModalKategori: (kategori: 'Reservoar' | 'Pompa Booster' | 'Industri') => void;
+  openLabModal: (item?: HasilLabHarian | null, kategori?: 'Reservoar' | 'Pompa Booster' | 'Industri') => void;
 
   isInfoModalOpen: boolean;
   setIsInfoModalOpen: (open: boolean) => void;
@@ -124,7 +124,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Lab modal
   const [isLabModalOpen, setIsLabModalOpen] = useState(false);
   const [editingLab, setEditingLab] = useState<HasilLabHarian | null>(null);
-  const [labModalKategori, setLabModalKategori] = useState<'Reservoar' | 'Industri'>('Reservoar');
+  const [labModalKategori, setLabModalKategori] = useState<'Reservoar' | 'Pompa Booster' | 'Industri'>('Reservoar');
 
   // Info modal
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -309,12 +309,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsMeterModalOpen(true);
   };
 
-  const openLabModal = (item?: HasilLabHarian | null, kategori?: 'Reservoar' | 'Industri') => {
+  const openLabModal = (item?: HasilLabHarian | null, kategori?: 'Reservoar' | 'Pompa Booster' | 'Industri') => {
     setEditingLab(item || null);
     if (kategori) {
       setLabModalKategori(kategori);
     } else if (item?.kategori_lab === 'Industri' || item?.kategori_lab === 'Uji Khusus Pabrik') {
       setLabModalKategori('Industri');
+    } else if (item?.kategori_lab === 'Pompa Booster') {
+      setLabModalKategori('Pompa Booster');
     } else {
       setLabModalKategori('Reservoar');
     }
