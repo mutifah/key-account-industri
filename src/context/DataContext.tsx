@@ -53,6 +53,7 @@ interface DataContextType {
   handleSaveInfo: (data: Omit<InfoPelayanan, 'id'> & { id?: string }) => Promise<void>;
   handleDeleteInfo: (id: string) => Promise<void>;
   handleToggleInfoPublish: (info: InfoPelayanan) => Promise<void>;
+  handleToggleInfoBanner: (info: InfoPelayanan) => Promise<void>;
   handleSaveCustomer: (data: PelangganIndustri) => Promise<void>;
   handleDeleteCustomer: (id: string) => Promise<void>;
   handleCreateTiket: (tiket: Omit<TiketLayanan, 'id' | 'created_at'>) => Promise<void>;
@@ -76,7 +77,9 @@ interface DataContextType {
   setIsLabModalOpen: (open: boolean) => void;
   editingLab: HasilLabHarian | null;
   setEditingLab: (item: HasilLabHarian | null) => void;
-  openLabModal: (item?: HasilLabHarian | null) => void;
+  labModalKategori: 'Reservoar' | 'Industri';
+  setLabModalKategori: (kategori: 'Reservoar' | 'Industri') => void;
+  openLabModal: (item?: HasilLabHarian | null, kategori?: 'Reservoar' | 'Industri') => void;
 
   isInfoModalOpen: boolean;
   setIsInfoModalOpen: (open: boolean) => void;
@@ -121,6 +124,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Lab modal
   const [isLabModalOpen, setIsLabModalOpen] = useState(false);
   const [editingLab, setEditingLab] = useState<HasilLabHarian | null>(null);
+  const [labModalKategori, setLabModalKategori] = useState<'Reservoar' | 'Industri'>('Reservoar');
 
   // Info modal
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -276,6 +280,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await loadData();
   };
 
+  const handleToggleInfoBanner = async (info: InfoPelayanan) => {
+    await saveInfoPelayanan({
+      ...info,
+      tampilkan_banner: info.tampilkan_banner === false ? true : false
+    });
+    await loadData();
+  };
+
   const handleSaveCustomer = async (data: PelangganIndustri) => {
     await savePelanggan(data);
     await loadData();
@@ -297,8 +309,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsMeterModalOpen(true);
   };
 
-  const openLabModal = (item?: HasilLabHarian | null) => {
+  const openLabModal = (item?: HasilLabHarian | null, kategori?: 'Reservoar' | 'Industri') => {
     setEditingLab(item || null);
+    if (kategori) {
+      setLabModalKategori(kategori);
+    } else if (item?.kategori_lab === 'Industri' || item?.kategori_lab === 'Uji Khusus Pabrik') {
+      setLabModalKategori('Industri');
+    } else {
+      setLabModalKategori('Reservoar');
+    }
     setIsLabModalOpen(true);
   };
 
@@ -340,6 +359,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     handleSaveInfo,
     handleDeleteInfo,
     handleToggleInfoPublish,
+    handleToggleInfoBanner,
     handleSaveCustomer,
     handleDeleteCustomer,
     handleCreateTiket,
@@ -362,6 +382,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLabModalOpen,
     editingLab,
     setEditingLab,
+    labModalKategori,
+    setLabModalKategori,
     openLabModal,
 
     isInfoModalOpen,
