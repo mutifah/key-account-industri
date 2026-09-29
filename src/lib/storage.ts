@@ -33,10 +33,10 @@ export function initializeStorage() {
   if (typeof window === 'undefined') return;
 
   // Auto-upgrade storage if old schema without status_progress or customer passwords
-  const MIGRATION_KEY = 'aetra_migrated_v2_progress';
+  const MIGRATION_KEY = 'aetra_migrated_v4_sepatan_only';
   if (localStorage.getItem(MIGRATION_KEY) !== 'true') {
-    setLocal(LS_PELANGGAN, INITIAL_PELANGGAN);
-    setLocal(LS_PEMAKAIAN, INITIAL_PEMAKAIAN);
+    setLocal(LS_LAB, INITIAL_LAB_RESULTS);
+    setLocal(LS_INFO, INITIAL_INFO_PELAYANAN);
     localStorage.setItem(MIGRATION_KEY, 'true');
   }
 
