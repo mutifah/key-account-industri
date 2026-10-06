@@ -40,7 +40,7 @@ export const CustomerHeader: React.FC<CustomerHeaderProps> = ({
                 </span>
               </div>
               <span className="text-xs text-slate-400 hidden sm:block">
-                Layanan Mandiri Rekap Meter, Tracking BPM & Mutu Lab Air Minum
+                Layanan Mandiri Rekap Meter & Mutu Lab Air Minum
               </span>
             </div>
           </Link>
