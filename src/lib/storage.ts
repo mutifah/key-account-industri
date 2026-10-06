@@ -381,6 +381,7 @@ export async function createTiketLayanan(tiket: Omit<TiketLayanan, 'id' | 'creat
   const newTiket: TiketLayanan = {
     ...tiket,
     id: `tkt-${Date.now()}`,
+    status: tiket.status || 'Terkirim',
     created_at: new Date().toISOString()
   };
   const updated = [newTiket, ...current];
@@ -395,6 +396,41 @@ export async function createTiketLayanan(tiket: Omit<TiketLayanan, 'id' | 'creat
     }
   }
   return newTiket;
+}
+
+export async function saveTiketLayanan(tiket: TiketLayanan): Promise<TiketLayanan> {
+  const current = getLocal<TiketLayanan[]>(LS_TIKET, INITIAL_TIKET);
+  const exists = current.some(t => t.id === tiket.id);
+  const updated = exists
+    ? current.map(t => (t.id === tiket.id ? tiket : t))
+    : [tiket, ...current];
+  setLocal(LS_TIKET, updated);
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      await supabase.from('tiket_layanan').upsert(tiket);
+    } catch (e) {
+      console.error('Supabase upsert tiket error', e);
+    }
+  }
+  return tiket;
+}
+
+export async function deleteTiketLayanan(id: string): Promise<boolean> {
+  const current = getLocal<TiketLayanan[]>(LS_TIKET, INITIAL_TIKET);
+  const filtered = current.filter(t => t.id !== id);
+  setLocal(LS_TIKET, filtered);
+
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      await supabase.from('tiket_layanan').delete().eq('id', id);
+    } catch (e) {
+      console.error('Supabase delete tiket error', e);
+    }
+  }
+  return true;
 }
 
 export async function resetDemoData() {
