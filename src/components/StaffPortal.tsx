@@ -13,7 +13,6 @@ import {
   ShieldCheck,
   Upload,
   ChevronRight,
-  KeyRound,
   FileCheck2,
   Clock,
   ArrowRight,
@@ -22,7 +21,14 @@ import {
   Sparkles,
   AlertTriangle,
   AlertOctagon,
-  Megaphone
+  Megaphone,
+  Droplets,
+  Headphones,
+  MessageSquare,
+  Send,
+  Phone,
+  Layers,
+  Filter
 } from 'lucide-react';
 import {
   PelangganIndustri,
@@ -44,7 +50,7 @@ interface StaffPortalProps {
   infoPelayanan: InfoPelayanan[];
   tiketList: TiketLayanan[];
   onOpenMeterModal: (initialData?: PemakaianAir | null) => void;
-  onOpenLabModal: (initialData?: HasilLabHarian | null, kategori?: 'Reservoar' | 'Pompa Booster' | 'Industri') => void;
+  onOpenLabModal: (initialData?: HasilLabHarian | null, kategori?: 'Reservoar IPA' | 'Reservoar Booster' | 'Industri' | string) => void;
   onOpenInfoModal: (initialData?: InfoPelayanan | null) => void;
   onOpenCustomerModal: (initialData?: PelangganIndustri | null) => void;
   onOpenExcelModal: () => void;
@@ -57,6 +63,8 @@ interface StaffPortalProps {
   onToggleInfoBanner?: (info: InfoPelayanan) => Promise<void>;
   onVerifyPemakaian: (pemakaian: PemakaianAir) => Promise<void>;
   onUpdateStatusProgress: (pemakaian: PemakaianAir, status: StatusProgressMeter) => Promise<void>;
+  onOpenTiketModal: (tiket: TiketLayanan) => void;
+  onDeleteTiket: (id: string) => Promise<void>;
 }
 
 export const StaffPortal: React.FC<StaffPortalProps> = ({
@@ -79,12 +87,15 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
   onToggleInfoPublish,
   onToggleInfoBanner,
   onVerifyPemakaian,
-  onUpdateStatusProgress
+  onUpdateStatusProgress,
+  onOpenTiketModal,
+  onDeleteTiket
 }) => {
-  const [activeTab, setActiveTab] = useState<'pemakaian' | 'lab' | 'pelayanan' | 'pelanggan'>('pemakaian');
+  const [activeTab, setActiveTab] = useState<'pemakaian' | 'lab' | 'pelayanan' | 'tiket'>('pemakaian');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMonth, setFilterMonth] = useState('Semua');
   const [filterLabKategori, setFilterLabKategori] = useState<string>('Semua');
+  const [filterTiketStatus, setFilterTiketStatus] = useState<string>('Semua');
 
   // Customer map for quick lookup
   const customerMap = useMemo(() => {
@@ -95,18 +106,58 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
     return map;
   }, [pelangganList]);
 
-  // Lab Category counts (Reservoar, Booster, & Industri Personalized)
-  const reservoarCount = useMemo(() => labResults.filter(l => (l.kategori_lab || 'Reservoar') === 'Reservoar').length, [labResults]);
-  const boosterCount = useMemo(() => labResults.filter(l => l.kategori_lab === 'Pompa Booster').length, [labResults]);
-  const industriCount = useMemo(() => labResults.filter(l => l.kategori_lab === 'Industri' || l.kategori_lab === 'Uji Khusus Pabrik').length, [labResults]);
+  // Ticket counts & stats
+  const unhandledTiketCount = useMemo(() => {
+    return tiketList.filter(t => t.status === 'Terkirim').length;
+  }, [tiketList]);
+
+  const escalatedCcTiketCount = useMemo(() => {
+    return tiketList.filter(t => t.status === 'Diteruskan ke CC').length;
+  }, [tiketList]);
+
+  const activeTiketCount = useMemo(() => {
+    return tiketList.filter(t => t.status !== 'Selesai').length;
+  }, [tiketList]);
+
+  const resolvedTiketCount = useMemo(() => {
+    return tiketList.filter(t => t.status === 'Selesai').length;
+  }, [tiketList]);
+
+  // Lab Category counts (3 Jenis Dokumen: Reservoar IPA, Reservoar Booster, Industri Personalized)
+  const reservoarIpaCount = useMemo(() => {
+    return labResults.filter(l => {
+      if (l.kategori_lab === 'Reservoar IPA') return true;
+      if (l.kategori_lab === 'Reservoar' && !l.judul_dokumen?.toLowerCase().includes('booster')) return true;
+      return false;
+    }).length;
+  }, [labResults]);
+
+  const reservoarBoosterCount = useMemo(() => {
+    return labResults.filter(l => {
+      if (l.kategori_lab === 'Reservoar Booster' || l.kategori_lab === 'Pompa Booster') return true;
+      if (l.kategori_lab === 'Reservoar' && l.judul_dokumen?.toLowerCase().includes('booster')) return true;
+      return false;
+    }).length;
+  }, [labResults]);
+
+  const industriCount = useMemo(() => {
+    return labResults.filter(l => l.kategori_lab === 'Industri' || l.kategori_lab === 'Uji Khusus Pabrik').length;
+  }, [labResults]);
 
   // Download Lab PDF Helper
   const handleDownloadLabPdf = (lab: HasilLabHarian) => {
     const isInd = lab.kategori_lab === 'Industri' || lab.kategori_lab === 'Uji Khusus Pabrik';
+    const isBooster = lab.kategori_lab === 'Reservoar Booster' || lab.kategori_lab === 'Pompa Booster' || (!isInd && lab.judul_dokumen?.toLowerCase().includes('booster'));
+    const defaultTitle = isInd
+      ? `Laporan Uji Mutu Air Industri - ${lab.nama_perusahaan_khusus || ''}`
+      : isBooster
+      ? 'Hasil Uji Mutu Air Stasiun Pompa Reservoar Booster'
+      : 'Hasil Uji Mutu Air Reservoar IPA Sepatan';
+
     const url = lab.pdf_url || generateOfficialLabPdfDataUrl(
-      lab.judul_dokumen || (isInd ? `Laporan Uji Mutu Air Industri - ${lab.nama_perusahaan_khusus || ''}` : 'Hasil Uji Mutu Air Reservoar IPA Sepatan'),
+      lab.judul_dokumen || defaultTitle,
       lab.no_sertifikat_lab,
-      lab.kategori_lab || 'Reservoar',
+      lab.kategori_lab || 'Reservoar IPA',
       lab.tanggal_uji,
       lab.lokasi_sampling,
       lab.nama_perusahaan_khusus,
@@ -131,7 +182,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
     });
   }, [pemakaianList, customerMap, searchQuery, filterMonth]);
 
-  // Filtered Lab Results
+  // Filtered Lab Results (3 Jenis Dokumen)
   const filteredLab = useMemo(() => {
     return labResults.filter(l => {
       const matchSearch =
@@ -142,26 +193,51 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
         (l.nama_perusahaan_khusus && l.nama_perusahaan_khusus.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (l.id_pelanggan_khusus && l.id_pelanggan_khusus.toLowerCase().includes(searchQuery.toLowerCase()));
 
-      const isReservoar = (l.kategori_lab || 'Reservoar') === 'Reservoar';
-      const isBooster = l.kategori_lab === 'Pompa Booster';
-      const isIndustri = l.kategori_lab === 'Industri' || l.kategori_lab === 'Uji Khusus Pabrik';
+      const isInd = l.kategori_lab === 'Industri' || l.kategori_lab === 'Uji Khusus Pabrik';
+      const isBooster = l.kategori_lab === 'Reservoar Booster' || l.kategori_lab === 'Pompa Booster' || (!isInd && l.judul_dokumen?.toLowerCase().includes('booster'));
+      const isIpa = !isInd && !isBooster;
 
       const matchKategori =
         filterLabKategori === 'Semua' ||
-        (filterLabKategori === 'Reservoar' && isReservoar) ||
-        (filterLabKategori === 'Pompa Booster' && isBooster) ||
-        (filterLabKategori === 'Industri' && isIndustri);
+        (filterLabKategori === 'Reservoar IPA' && isIpa) ||
+        (filterLabKategori === 'Reservoar Booster' && isBooster) ||
+        (filterLabKategori === 'Industri' && isInd);
 
       return matchSearch && matchKategori;
     });
   }, [labResults, searchQuery, filterLabKategori]);
 
+  // Filtered Tiket Komplain
+  const filteredTiket = useMemo(() => {
+    return tiketList.filter(t => {
+      const cust = customerMap[t.id_pelanggan];
+      const name = cust?.nama_perusahaan || '';
+      const matchSearch =
+        t.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.id_pelanggan.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.perihal.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.kategori.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (t.no_tiket_cc && t.no_tiket_cc.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (t.pesan && t.pesan.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const matchStatus =
+        filterTiketStatus === 'Semua' ||
+        (filterTiketStatus === 'Terkirim' && t.status === 'Terkirim') ||
+        (filterTiketStatus === 'Diteruskan ke CC' && t.status === 'Diteruskan ke CC') ||
+        (filterTiketStatus === 'Diproses' && t.status === 'Diproses') ||
+        (filterTiketStatus === 'Selesai' && t.status === 'Selesai');
+
+      return matchSearch && matchStatus;
+    });
+  }, [tiketList, customerMap, searchQuery, filterTiketStatus]);
+
   // Export to CSV helper
   const exportPemakaianCSV = () => {
-    const headers = ['ID Pelanggan,Nama Perusahaan,Periode Bulan,Tahun,Tanggal Baca,No BPM,Meter Awal,Meter Akhir,Volume m3,Status Progress,Pencatat\n'];
+    const headers = ['ID Pelanggan,Nama Perusahaan,Periode Bulan,Tahun,Tanggal Baca,Meter Awal,Meter Akhir,Volume m3,Status Progress,Pencatat\n'];
     const rows = filteredPemakaian.map(p => {
       const cust = customerMap[p.id_pelanggan];
-      return `"${p.id_pelanggan}","${cust?.nama_perusahaan || ''}","${p.periode_bulan}",${p.periode_tahun},"${p.tanggal_baca}","${p.no_bpm || ''}",${p.meter_awal},${p.meter_akhir},${p.total_m3},"${p.status_progress}","${p.nama_staf_pencatat || ''}"\n`;
+      return `"${p.id_pelanggan}","${cust?.nama_perusahaan || ''}","${p.periode_bulan}",${p.periode_tahun},"${p.tanggal_baca}",${p.meter_awal},${p.meter_akhir},${p.total_m3},"${p.status_progress}","${p.nama_staf_pencatat || ''}"\n`;
     });
     const blob = new Blob([headers.concat(rows).join('')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -176,8 +252,8 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
   return (
     <div className="space-y-6">
       {/* Staff Workspace Header */}
-      <div className="bg-slate-900 rounded-2xl p-6 text-white border border-slate-800 shadow-md">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="bg-slate-900 rounded-2xl p-6 text-white border border-slate-800 shadow-md space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30 shrink-0">
               <ShieldCheck className="w-6 h-6" />
@@ -199,42 +275,137 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                Rekap pemakaian air bulanan via Excel/manual, hasil lab harian & info pelayanan.
+                Portal operasional rekap pemakaian air industri, verifikasi stand meter, hasil lab mutu air, dan publikasi info layanan.
               </p>
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            <button
-              onClick={onOpenExcelModal}
-              className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <Upload className="w-4 h-4" />
-              <span>Upload Rekap Excel</span>
-            </button>
-            <button
-              onClick={() => onOpenMeterModal(null)}
-              className="px-3.5 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Input Manual</span>
-            </button>
-            <button
-              onClick={() => onOpenLabModal(null)}
-              className="px-3.5 py-2 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-xs font-semibold rounded-lg shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
-              title="Upload Berkas PDF Hasil Uji Lab (Reservoar / Industri)"
-            >
-              <FileCheck2 className="w-4 h-4 text-cyan-200" />
-              <span>Upload PDF Hasil Uji Lab</span>
-            </button>
-            <button
-              onClick={() => onOpenInfoModal(null)}
-              className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <Megaphone className="w-4 h-4 text-slate-950" />
-              <span>Input Banner Gangguan</span>
-            </button>
-          </div>
+        {/* 5 Kotak Menu Upload & Aksi Cepat */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 pt-2 border-t border-slate-800/80">
+          {/* Kotak 1: Upload Rekap Excel (warna hijau) */}
+          <button
+            onClick={onOpenExcelModal}
+            className="group relative p-4 rounded-2xl bg-emerald-700 hover:bg-emerald-600 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left border border-emerald-600 flex flex-col justify-between h-32 cursor-pointer"
+          >
+            <div className="flex items-center justify-between w-full">
+              <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
+                <Upload className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-100 border border-white/20">
+                Berkas .xlsx
+              </span>
+            </div>
+            <div>
+              <h3 className="font-bold text-sm sm:text-base tracking-tight leading-snug">
+                Upload Rekap Excel
+              </h3>
+              <p className="text-[11px] text-emerald-100 mt-0.5 line-clamp-1">
+                Impor data pemakaian air bulanan
+              </p>
+            </div>
+          </button>
+
+          {/* Kotak 2: Input Manual (warna hijau muda) */}
+          <button
+            onClick={() => onOpenMeterModal(null)}
+            className="group relative p-4 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left border border-emerald-300 flex flex-col justify-between h-32 cursor-pointer"
+          >
+            <div className="flex items-center justify-between w-full">
+              <div className="w-9 h-9 rounded-xl bg-slate-950/15 flex items-center justify-center text-slate-950 backdrop-blur-xs shadow-xs">
+                <Plus className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600/30 text-slate-950 border border-emerald-600/40">
+                Form Satuan
+              </span>
+            </div>
+            <div>
+              <h3 className="font-bold text-sm sm:text-base tracking-tight leading-snug text-slate-950">
+                Input Manual
+              </h3>
+              <p className="text-[11px] text-slate-800 mt-0.5 line-clamp-1">
+                Pencatatan meter air individu
+              </p>
+            </div>
+          </button>
+
+          {/* Kotak 3: Upload Hasil Uji Lab (warna biru muda - tampilan disatukan) */}
+          <button
+            onClick={() => onOpenLabModal(null)}
+            className="group relative p-4 rounded-2xl bg-sky-500 hover:bg-sky-400 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left border border-sky-400 flex flex-col justify-between h-32 cursor-pointer"
+          >
+            <div className="flex items-center justify-between w-full">
+              <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
+                <FlaskConical className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-700/60 text-sky-100 border border-white/20">
+                PDF Lab Mutu
+              </span>
+            </div>
+            <div>
+              <h3 className="font-bold text-sm sm:text-base tracking-tight leading-snug">
+                Upload Hasil Uji Lab
+              </h3>
+              <p className="text-[11px] text-sky-100 mt-0.5 line-clamp-1">
+                Dapat diunggah semua akun staf · 3 Jenis Dokumen
+              </p>
+            </div>
+          </button>
+
+          {/* Kotak 4: Upload Banner Pemberitahuan / Gangguan (warna oren) */}
+          <button
+            onClick={() => onOpenInfoModal(null)}
+            className="group relative p-4 rounded-2xl bg-orange-500 hover:bg-orange-400 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left border border-orange-400 flex flex-col justify-between h-32 cursor-pointer"
+          >
+            <div className="flex items-center justify-between w-full">
+              <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
+                <Megaphone className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-700/60 text-orange-100 border border-white/20">
+                Pemberitahuan
+              </span>
+            </div>
+            <div>
+              <h3 className="font-bold text-sm sm:text-base tracking-tight leading-snug">
+                Upload Banner Pemberitahuan / Gangguan
+              </h3>
+              <p className="text-[11px] text-orange-100 mt-0.5 line-clamp-1">
+                Info pemeliharaan pipa & pasokan
+              </p>
+            </div>
+          </button>
+
+          {/* Kotak 5: Tindak Lanjut Komplain Pelanggan (warna ungu) */}
+          <button
+            onClick={() => {
+              setActiveTab('tiket');
+              setSearchQuery('');
+            }}
+            className="group relative p-4 rounded-2xl bg-purple-700 hover:bg-purple-600 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left border border-purple-600 flex flex-col justify-between h-32 cursor-pointer"
+          >
+            <div className="flex items-center justify-between w-full">
+              <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
+                <Headphones className="w-5 h-5 text-white" />
+              </div>
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/20 ${
+                  unhandledTiketCount > 0
+                    ? 'bg-amber-400 text-slate-950 font-extrabold animate-pulse'
+                    : 'bg-purple-900/60 text-purple-100'
+                }`}
+              >
+                {unhandledTiketCount > 0 ? `${unhandledTiketCount} Baru` : `${activeTiketCount} Aktif`}
+              </span>
+            </div>
+            <div>
+              <h3 className="font-bold text-sm sm:text-base tracking-tight leading-snug">
+                Tindak Lanjut Komplain
+              </h3>
+              <p className="text-[11px] text-purple-100 mt-0.5 line-clamp-1">
+                Respon pelanggan & eskalasi CC
+              </p>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -288,17 +459,22 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
 
           <button
             onClick={() => {
-              setActiveTab('pelanggan');
+              setActiveTab('tiket');
               setSearchQuery('');
             }}
             className={`py-3.5 px-4 text-xs font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 cursor-pointer ${
-              activeTab === 'pelanggan'
-                ? 'border-cyan-600 text-cyan-700'
+              activeTab === 'tiket'
+                ? 'border-purple-600 text-purple-700'
                 : 'border-transparent text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Building2 className="w-4 h-4" />
-            <span>4. Master Pelanggan & Akun ({pelangganList.length})</span>
+            <Headphones className="w-4 h-4" />
+            <span>4. Komplain & Tiket Layanan ({tiketList.length})</span>
+            {unhandledTiketCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white animate-pulse">
+                {unhandledTiketCount} Baru
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -315,7 +491,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari ID Pelanggan / Pabrik / No. BPM..."
+                  placeholder="Cari ID Pelanggan / Nama Pabrik..."
                   className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500"
                 />
               </div>
@@ -366,7 +542,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                 <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
                   <tr>
                     <th className="p-3">ID & Nama Industri</th>
-                    <th className="p-3">Periode & No. BPM</th>
+                    <th className="p-3">Periode</th>
                     <th className="p-3">Tanggal Catat</th>
                     <th className="p-3 text-right">Meter Awal</th>
                     <th className="p-3 text-right">Meter Akhir</th>
@@ -391,13 +567,6 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                           <span className="font-semibold text-slate-900 block">
                             {p.periode_bulan} {p.periode_tahun}
                           </span>
-                          {p.no_bpm ? (
-                            <span className="font-mono text-[11px] text-slate-500">
-                              {p.no_bpm}
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-slate-400 italic">Tanpa No. BPM</span>
-                          )}
                         </td>
                         <td className="p-3 font-mono text-slate-600 whitespace-nowrap">
                           {p.tanggal_baca}
@@ -450,7 +619,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
         </div>
       )}
 
-      {/* TAB 2: HASIL LAB KUALITAS AIR - 2 KATEGORI: RESERVOAR & INDUSTRI (PERSONALIZED) */}
+      {/* TAB 2: HASIL LAB KUALITAS AIR - 3 KATEGORI: RESERVOAR IPA, RESERVOAR BOOSTER, INDUSTRI (PERSONALIZED) */}
       {activeTab === 'lab' && (
         <div className="space-y-4">
           {/* Information & Category Badges Header */}
@@ -461,29 +630,32 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                 <span className="text-xs uppercase font-bold text-cyan-400 tracking-wider">
                   Pengelolaan Dokumen Hasil Uji Laboratorium Mutu Air
                 </span>
+                <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">
+                  Dapat Diunggah Semua Akun Staf
+                </span>
               </div>
               <h3 className="text-base font-bold text-white">
-                Upload Dokumen PDF Hasil Uji Lab Reservoar & Hasil Uji Lab Industri
+                Upload Dokumen PDF Hasil Uji Lab (3 Jenis Dokumen)
               </h3>
               <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-                Staf laboratorium dapat mengunggah berkas PDF resmi untuk Hasil Uji Lab Reservoar IPA Sepatan maupun Hasil Uji Lab Industri khusus yang ditujukan pada pelanggan industri tertentu.
+                Hasil uji lab dapat diunggah oleh seluruh akun staf Aetra untuk 1. Hasil Uji Lab Reservoar IPA, 2. Hasil Uji Lab Reservoar Booster, serta 3. Hasil Uji Lab Industri (Personalized) yang ditujukan pada mitra industri tertentu.
               </p>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+            <div className="shrink-0">
               <button
                 onClick={() => onOpenLabModal(null)}
-                className="px-4 py-2.5 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                className="px-4 py-2.5 bg-sky-500 hover:bg-sky-400 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
               >
-                <FileCheck2 className="w-4 h-4 text-cyan-200" />
-                <span>+ Upload PDF Hasil Uji Lab</span>
+                <FlaskConical className="w-4 h-4 text-sky-100" />
+                <span>+ Upload Hasil Uji Lab</span>
               </button>
             </div>
           </div>
 
           {/* Category Filter Pills & Search */}
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-            {/* Filter Tabs */}
+            {/* Filter Tabs (3 Jenis Dokumen) */}
             <div className="flex items-center gap-1.5 flex-wrap">
               <button
                 type="button"
@@ -500,33 +672,33 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
 
               <button
                 type="button"
-                onClick={() => setFilterLabKategori('Reservoar')}
+                onClick={() => setFilterLabKategori('Reservoar IPA')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  filterLabKategori === 'Reservoar'
+                  filterLabKategori === 'Reservoar IPA'
                     ? 'bg-cyan-700 text-white shadow-xs'
                     : 'bg-cyan-50 text-cyan-800 hover:bg-cyan-100 border border-cyan-200'
                 }`}
               >
-                <FlaskConical className="w-3.5 h-3.5" />
-                <span>Hasil Uji Lab Reservoar</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${filterLabKategori === 'Reservoar' ? 'bg-white/20' : 'bg-cyan-200 text-cyan-900'}`}>
-                  {reservoarCount}
+                <Droplets className="w-3.5 h-3.5 text-cyan-600" />
+                <span>1. Reservoar IPA</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${filterLabKategori === 'Reservoar IPA' ? 'bg-white/20' : 'bg-cyan-200 text-cyan-900'}`}>
+                  {reservoarIpaCount}
                 </span>
               </button>
 
               <button
                 type="button"
-                onClick={() => setFilterLabKategori('Pompa Booster')}
+                onClick={() => setFilterLabKategori('Reservoar Booster')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 ${
-                  filterLabKategori === 'Pompa Booster'
-                    ? 'bg-amber-600 text-white shadow-xs'
-                    : 'bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-200'
+                  filterLabKategori === 'Reservoar Booster'
+                    ? 'bg-blue-700 text-white shadow-xs'
+                    : 'bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200'
                 }`}
               >
-                <Gauge className="w-3.5 h-3.5" />
-                <span>Hasil Uji Lab Booster</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${filterLabKategori === 'Pompa Booster' ? 'bg-white/20' : 'bg-amber-200 text-amber-950'}`}>
-                  {boosterCount}
+                <Gauge className="w-3.5 h-3.5 text-blue-600" />
+                <span>2. Reservoar Booster</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${filterLabKategori === 'Reservoar Booster' ? 'bg-white/20' : 'bg-blue-200 text-blue-900'}`}>
+                  {reservoarBoosterCount}
                 </span>
               </button>
 
@@ -540,7 +712,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                 }`}
               >
                 <Building2 className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Hasil Uji Lab Industri (Personalized)</span>
+                <span>3. Industri (Personalized)</span>
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${filterLabKategori === 'Industri' ? 'bg-white/20' : 'bg-indigo-200 text-indigo-900'}`}>
                   {industriCount}
                 </span>
@@ -554,7 +726,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari laporan / no COA / pabrik..."
+                placeholder="Cari judul dokumen / lokasi / pabrik..."
                 className="w-full pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 bg-slate-50 focus:bg-white"
               />
             </div>
@@ -570,14 +742,18 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                     <th className="p-3">Kategori & Sasaran</th>
                     <th className="p-3">Judul Dokumen & Titik Sampling</th>
                     <th className="p-3">Berkas Dokumen PDF</th>
-                    <th className="p-3">No. Sertifikat / COA</th>
                     <th className="p-3 text-center">Status Kelayakan</th>
                     <th className="p-3 text-center">Aksi Dokumen</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {filteredLab.map((l) => {
-                    const isKhusus = l.kategori_lab === 'Industri' || l.kategori_lab === 'Uji Khusus Pabrik';
+                    const isInd = l.kategori_lab === 'Industri' || l.kategori_lab === 'Uji Khusus Pabrik';
+                    const isBooster = l.kategori_lab === 'Reservoar Booster' || l.kategori_lab === 'Pompa Booster' || (!isInd && l.judul_dokumen?.toLowerCase().includes('booster'));
+                    const isIpa = !isInd && !isBooster;
+
+                    const editKategori = isInd ? 'Industri' : isBooster ? 'Reservoar Booster' : 'Reservoar IPA';
+
                     return (
                       <tr key={l.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="p-3 font-mono font-semibold text-slate-900 whitespace-nowrap">
@@ -586,23 +762,23 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                         </td>
 
                         <td className="p-3">
-                          {l.kategori_lab === 'Pompa Booster' && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                              <Gauge className="w-3 h-3 text-amber-700" />
-                              <span>Hasil Uji Lab Booster</span>
-                            </span>
-                          )}
-                          {(l.kategori_lab === 'Reservoar' || (!isKhusus && l.kategori_lab !== 'Pompa Booster')) && (
+                          {isIpa && (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-cyan-100 text-cyan-900 border border-cyan-300">
-                              <FlaskConical className="w-3 h-3 text-cyan-700" />
-                              <span>Hasil Uji Lab Reservoar</span>
+                              <Droplets className="w-3 h-3 text-cyan-700" />
+                              <span>1. Reservoar IPA</span>
                             </span>
                           )}
-                          {isKhusus && (
+                          {isBooster && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-blue-100 text-blue-900 border border-blue-300">
+                              <Gauge className="w-3 h-3 text-blue-700" />
+                              <span>2. Reservoar Booster</span>
+                            </span>
+                          )}
+                          {isInd && (
                             <div className="space-y-1">
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-100 text-indigo-900 border border-indigo-300">
                                 <Sparkles className="w-3 h-3 text-indigo-600" />
-                                <span>Hasil Uji Lab Industri</span>
+                                <span>3. Industri (Personalized)</span>
                               </span>
                               <div className="font-semibold text-slate-900 flex items-center gap-1 text-[11px]">
                                 <Building2 className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
@@ -619,9 +795,6 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                           </p>
                           <span className="block text-[11px] text-slate-600 line-clamp-1">
                             {l.lokasi_sampling}
-                          </span>
-                          <span className="block text-[10px] text-slate-400">
-                            Analis: {l.nama_analis_lab || 'Nurul Hidayati, S.Si'}
                           </span>
                         </td>
 
@@ -646,10 +819,6 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                               <Download className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                        </td>
-
-                        <td className="p-3 font-mono text-cyan-900 font-semibold text-xs whitespace-nowrap">
-                          {l.no_sertifikat_lab}
                         </td>
 
                         <td className="p-3 text-center whitespace-nowrap">
@@ -677,7 +846,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                               <FileSpreadsheet className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => onOpenLabModal(l, isKhusus ? 'Industri' : l.kategori_lab === 'Pompa Booster' ? 'Pompa Booster' : 'Reservoar')}
+                              onClick={() => onOpenLabModal(l, editKategori)}
                               title="Edit Data / Ganti PDF"
                               className="p-1 rounded text-slate-600 hover:bg-slate-100 cursor-pointer"
                             >
@@ -880,105 +1049,248 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
         </div>
       )}
 
-      {/* TAB 4: MASTER DATA PELANGGAN INDUSTRI (NO DIAMETER, NO TARIF, NO KUOTA) */}
-      {activeTab === 'pelanggan' && (
+      {/* TAB 4: KOMPLAIN & TIKET LAYANAN PELANGGAN */}
+      {activeTab === 'tiket' && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center bg-white p-4 rounded-xl border border-slate-200 shadow-xs gap-3">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">
-                Master Data Pelanggan Key Account Industri
-              </h3>
-              <p className="text-xs text-slate-500">
-                Data kredensial login portal mandiri pelanggan (ID Pelanggan & Password) serta kontak PIC
-              </p>
+          {/* Header & KPI Summary Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-semibold text-slate-500 block">Total Tiket Komplain</span>
+                <span className="text-xl font-black text-slate-900">{tiketList.length}</span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
+                <FileText className="w-5 h-5" />
+              </div>
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={onOpenExcelModal}
-                className="px-3.5 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
-              >
-                <FileSpreadsheet className="w-4 h-4" />
-                <span>Upload Excel & Sinkronisasi Nama</span>
-              </button>
-              <button
-                onClick={() => onOpenCustomerModal(null)}
-                className="px-3.5 py-1.5 text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Registrasi Pelanggan Baru</span>
-              </button>
+
+            <div className="bg-white p-4 rounded-xl border border-amber-200 shadow-xs flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-semibold text-amber-700 block">Perlu Respon (Baru)</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xl font-black text-amber-900">{unhandledTiketCount}</span>
+                  {unhandledTiketCount > 0 && (
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping inline-block" />
+                  )}
+                </div>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-xl border border-purple-200 shadow-xs flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-semibold text-purple-700 block">Diteruskan ke CC / Teknis</span>
+                <span className="text-xl font-black text-purple-900">{escalatedCcTiketCount}</span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center">
+                <Headphones className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-xl border border-emerald-200 shadow-xs flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-semibold text-emerald-700 block">Komplain Terselesaikan</span>
+                <span className="text-xl font-black text-emerald-900">{resolvedTiketCount}</span>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200">
-                  <tr>
-                    <th className="p-3">ID Pelanggan</th>
-                    <th className="p-3">Nama Perusahaan & Sektor</th>
-                    <th className="p-3">Kata Sandi (Password)</th>
-                    <th className="p-3">Alamat Kawasan & Zona</th>
-                    <th className="p-3">PIC Pabrik</th>
-                    <th className="p-3">No. Meter Fisik</th>
-                    <th className="p-3 text-center">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {pelangganList.map((c) => (
-                    <tr key={c.id_pelanggan} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="p-3 font-mono font-bold text-cyan-800 whitespace-nowrap">
-                        {c.id_pelanggan}
-                      </td>
-                      <td className="p-3">
-                        <span className="font-bold text-slate-900 block">{c.nama_perusahaan}</span>
-                        <span className="text-[11px] text-slate-500">{c.bidang_usaha}</span>
-                      </td>
-                      <td className="p-3 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1 font-mono text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
-                          <KeyRound className="w-3 h-3 text-slate-400" />
-                          <span>{c.password || 'aetra123'}</span>
-                        </span>
-                      </td>
-                      <td className="p-3 text-slate-700 max-w-xs truncate">
-                        <div>{c.alamat_kawasan}</div>
-                        <div className="text-[11px] text-slate-500">{c.zona_distribusi}</div>
-                      </td>
-                      <td className="p-3">
-                        <span className="font-medium text-slate-800 block">{c.pic_nama}</span>
-                        <span className="text-[11px] text-slate-500 font-mono">{c.pic_telepon}</span>
-                      </td>
-                      <td className="p-3 font-mono text-slate-800 whitespace-nowrap">
-                        {c.no_meter}
-                      </td>
-                      <td className="p-3 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => onOpenCustomerModal(c)}
-                            title="Edit Data Pelanggan"
-                            className="p-1 rounded text-slate-600 hover:bg-slate-100 cursor-pointer"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm(`Hapus pelanggan ${c.nama_perusahaan}? Seluruh riwayat pemakaian juga akan terhapus.`)) {
-                                onDeleteCustomer(c.id_pelanggan);
-                              }
-                            }}
-                            title="Hapus Pelanggan"
-                            className="p-1 rounded text-rose-600 hover:bg-rose-50 cursor-pointer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Action Toolbar & Filters */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col lg:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2 w-full lg:w-auto flex-wrap sm:flex-nowrap">
+              <div className="relative flex-1 sm:w-72">
+                <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Cari ID tiket, perusahaan, perihal..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white"
+                />
+              </div>
+
+              {/* Filter Status */}
+              <select
+                value={filterTiketStatus}
+                onChange={(e) => setFilterTiketStatus(e.target.value)}
+                className="py-2 px-3 bg-slate-50 border border-slate-300 rounded-lg text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+              >
+                <option value="Semua">Semua Status Tiket</option>
+                <option value="Terkirim">Terkirim (Perlu Tindak Lanjut)</option>
+                <option value="Diteruskan ke CC">Diteruskan ke CC</option>
+                <option value="Diproses">Diproses Key Account</option>
+                <option value="Selesai">Telah Selesai</option>
+              </select>
+            </div>
+
+            <div className="text-xs text-slate-500 font-medium">
+              Menampilkan <strong className="text-slate-800">{filteredTiket.length}</strong> tiket
             </div>
           </div>
+
+          {/* Ticket Cards List */}
+          {filteredTiket.length === 0 ? (
+            <div className="bg-white rounded-xl border border-slate-200 p-12 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                <Headphones className="w-6 h-6" />
+              </div>
+              <h4 className="font-bold text-slate-800 text-sm">Tidak Ada Tiket yang Sesuai</h4>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Silakan sesuaikan kata kunci pencarian atau ubah filter status tiket di atas.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredTiket.map((t) => {
+                const cust = customerMap[t.id_pelanggan];
+                const isResolved = t.status === 'Selesai';
+                const isEscalated = t.status === 'Diteruskan ke CC';
+                const isNew = t.status === 'Terkirim';
+
+                return (
+                  <div
+                    key={t.id}
+                    className={`bg-white rounded-xl border p-4 shadow-xs transition-all hover:shadow-sm space-y-3 ${
+                      isNew
+                        ? 'border-amber-300 ring-1 ring-amber-300/40'
+                        : isEscalated
+                        ? 'border-purple-200'
+                        : isResolved
+                        ? 'border-emerald-200'
+                        : 'border-slate-200'
+                    }`}
+                  >
+                    {/* Header Bar: Kode Tiket, Waktu, Status */}
+                    <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        {/* Kode Tiket Utama */}
+                        <span className="font-mono text-xs font-bold bg-slate-900 text-white px-2.5 py-0.5 rounded-lg shadow-2xs">
+                          {t.id}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-[11px] text-slate-400">
+                          {new Date(t.created_at).toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })} WIB
+                        </span>
+
+                        <span
+                          className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                            isResolved
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : isEscalated
+                              ? 'bg-purple-100 text-purple-800'
+                              : isNew
+                              ? 'bg-amber-100 text-amber-800 font-extrabold'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}
+                        >
+                          {t.status === 'Terkirim' ? 'Belum Ditindaklanjuti' : t.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Pelanggan & Kontak (Bersih tanpa zona/stand meter) */}
+                    <div className="flex items-center justify-between gap-3 text-xs text-slate-600 flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <strong className="text-slate-900 font-bold">
+                          {cust?.nama_perusahaan || t.id_pelanggan}
+                        </strong>
+                        <span className="text-[11px] text-slate-400 font-mono">
+                          ({t.id_pelanggan})
+                        </span>
+                      </div>
+
+                      {cust?.pic_nama && (
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                          <Phone className="w-3 h-3 text-slate-400" />
+                          <span>PIC: <strong>{cust.pic_nama}</strong></span>
+                          {cust.pic_telepon && <span className="text-slate-400 font-mono">({cust.pic_telepon})</span>}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Perihal & Pesan Komplain */}
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-xs sm:text-sm text-slate-900 leading-snug">
+                        {t.perihal}
+                      </h4>
+                      <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg border border-slate-100 leading-relaxed">
+                        "{t.pesan}"
+                      </p>
+                    </div>
+
+                    {/* Follow-up Details (Hanya muncul jika sudah ada tindakan) */}
+                    {(t.no_tiket_cc || t.respon_petugas) && (
+                      <div className="space-y-1.5 pt-1 text-xs">
+                        {/* Jika ada no tiket CC */}
+                        {t.no_tiket_cc && (
+                          <div className="p-2 bg-purple-50 rounded-lg border border-purple-100 text-purple-950 flex items-center justify-between gap-2 flex-wrap text-[11px]">
+                            <div className="flex items-center gap-1.5">
+                              <Headphones className="w-3.5 h-3.5 text-purple-700 shrink-0" />
+                              <span>Eskalasi CC: <strong className="font-mono">{t.no_tiket_cc}</strong></span>
+                            </div>
+                            {t.catatan_internal_cc && (
+                              <span className="italic text-purple-800 text-[10px]">
+                                "{t.catatan_internal_cc}"
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Jika ada tanggapan ke pelanggan */}
+                        {t.respon_petugas && (
+                          <div className="p-2 bg-cyan-50 rounded-lg border border-cyan-100 text-cyan-950 text-[11px] space-y-0.5">
+                            <div className="flex items-center justify-between text-[10px] text-cyan-800">
+                              <span className="font-semibold flex items-center gap-1">
+                                <MessageSquare className="w-3 h-3 text-cyan-700" />
+                                <span>Tanggapan ke Pelanggan:</span>
+                              </span>
+                              <span>{t.nama_petugas_tindak_lanjut || 'Key Account'}</span>
+                            </div>
+                            <p className="font-medium text-cyan-950">"{t.respon_petugas}"</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Footer Actions */}
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                      <button
+                        onClick={() => {
+                          if (confirm(`Hapus tiket ${t.id}?`)) {
+                            onDeleteTiket(t.id);
+                          }
+                        }}
+                        className="text-xs text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                      >
+                        Hapus
+                      </button>
+
+                      <button
+                        onClick={() => onOpenTiketModal(t)}
+                        className="px-3.5 py-1.5 bg-purple-700 hover:bg-purple-600 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Headphones className="w-3.5 h-3.5" />
+                        <span>Tindak Lanjuti</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
