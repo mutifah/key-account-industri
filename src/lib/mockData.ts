@@ -218,17 +218,17 @@ export const INITIAL_PEMAKAIAN: PemakaianAir[] = [
 ];
 
 export const INITIAL_LAB_RESULTS: HasilLabHarian[] = [
-  // 1. OPSI 1: Hasil Uji Lab Reservoar (IPA Sepatan)
+  // 1. Kategori 1: Hasil Uji Lab Reservoar IPA (Sepatan)
   {
     id: 'lab-001',
     judul_dokumen: 'Hasil Uji Mutu Air Reservoar Distribusi Utama IPA Sepatan',
-    kategori_lab: 'Reservoar',
+    kategori_lab: 'Reservoar IPA',
     tanggal_uji: '2026-09-27',
     waktu_sampling: '07:30 WIB',
     lokasi_sampling: 'Bak Penampungan & Reservoar Utama IPA Sepatan Tangerang',
     nama_analis_lab: 'Nurul Hidayati, S.Si (Analis Pengendalian Mutu)',
-    no_sertifikat_lab: 'COA-RES/AETRA/2026/09-0112',
-    pdf_filename: 'Laporan_Uji_Lab_Reservoar_Sepatan_Sep2026.pdf',
+    no_sertifikat_lab: 'COA-IPA/AETRA/2026/09-0112',
+    pdf_filename: 'Laporan_Uji_Lab_Reservoar_IPA_Sepatan_Sep2026.pdf',
     pdf_size: '1.8 MB',
     status_kelayakan: 'MEMENUHI SYARAT (Permenkes No. 2/2023)',
     catatan: 'Seluruh parameter mikrobiologi, kimia, dan fisika pada air olahan reservoar dinyatakan steril dan layak minum.',
@@ -244,13 +244,13 @@ export const INITIAL_LAB_RESULTS: HasilLabHarian[] = [
   {
     id: 'lab-002',
     judul_dokumen: 'Hasil Uji Mutu Air Reservoar IPA Sepatan Tangerang',
-    kategori_lab: 'Reservoar',
+    kategori_lab: 'Reservoar IPA',
     tanggal_uji: '2026-09-25',
     waktu_sampling: '08:00 WIB',
     lokasi_sampling: 'Reservoar Distribusi Utara IPA Sepatan',
     nama_analis_lab: 'Nurul Hidayati, S.Si (Analis Pengendalian Mutu)',
-    no_sertifikat_lab: 'COA-RES/AETRA/2026/09-0110',
-    pdf_filename: 'Laporan_Uji_Lab_Reservoar_Sepatan_Sep2026.pdf',
+    no_sertifikat_lab: 'COA-IPA/AETRA/2026/09-0110',
+    pdf_filename: 'Laporan_Uji_Lab_Reservoar_IPA_Sepatan_Sep2026.pdf',
     pdf_size: '1.6 MB',
     status_kelayakan: 'MEMENUHI SYARAT (Permenkes No. 2/2023)',
     catatan: 'Kualitas air jernih stabil dengan desinfeksi optimal.',
@@ -264,17 +264,17 @@ export const INITIAL_LAB_RESULTS: HasilLabHarian[] = [
     created_at: '2026-09-25T08:45:00Z'
   },
 
-  // 2. OPSI 2: Hasil Uji Lab Pompa Booster
+  // 2. Kategori 2: Hasil Uji Lab Reservoar Booster
   {
     id: 'lab-003',
-    judul_dokumen: 'Hasil Uji Mutu Air Stasiun Pompa Booster Jatiuwung',
-    kategori_lab: 'Pompa Booster',
+    judul_dokumen: 'Hasil Uji Mutu Air Stasiun Pompa Reservoar Booster Jatiuwung',
+    kategori_lab: 'Reservoar Booster',
     tanggal_uji: '2026-09-26',
     waktu_sampling: '09:15 WIB',
     lokasi_sampling: 'Outlet Discharge Booster Pump Station Jatiuwung & Pasir Jaya',
     nama_analis_lab: 'Dian Permana (Laboratorium Lapangan)',
     no_sertifikat_lab: 'COA-BST/AETRA/2026/09-0205',
-    pdf_filename: 'Laporan_Uji_Lab_Booster_Jatiuwung_Sep2026.pdf',
+    pdf_filename: 'Laporan_Uji_Lab_Reservoar_Booster_Jatiuwung_Sep2026.pdf',
     pdf_size: '1.5 MB',
     status_kelayakan: 'MEMENUHI SYARAT (Permenkes No. 2/2023)',
     catatan: 'Klor sisa terjaga baik di jaringan pompa dorong, aman untuk transmisi bertekanan tinggi.',
@@ -289,14 +289,14 @@ export const INITIAL_LAB_RESULTS: HasilLabHarian[] = [
   },
   {
     id: 'lab-004',
-    judul_dokumen: 'Hasil Uji Mutu Air Stasiun Pompa Booster Cikupa Mas',
-    kategori_lab: 'Pompa Booster',
+    judul_dokumen: 'Hasil Uji Mutu Air Stasiun Pompa Reservoar Booster Cikupa Mas',
+    kategori_lab: 'Reservoar Booster',
     tanggal_uji: '2026-09-24',
     waktu_sampling: '08:45 WIB',
     lokasi_sampling: 'Booster Pump Station Cikupa Mas Blok Central',
     nama_analis_lab: 'Dian Permana (Laboratorium Lapangan)',
     no_sertifikat_lab: 'COA-BST/AETRA/2026/09-0201',
-    pdf_filename: 'Laporan_Uji_Lab_Booster_Cikupa_Sep2026.pdf',
+    pdf_filename: 'Laporan_Uji_Lab_Reservoar_Booster_Cikupa_Sep2026.pdf',
     pdf_size: '1.4 MB',
     status_kelayakan: 'MEMENUHI SYARAT (Permenkes No. 2/2023)',
     catatan: 'Tekanan dorong 3.6 bar dengan mutu air memenuhi standar industri pangan.',
@@ -310,19 +310,19 @@ export const INITIAL_LAB_RESULTS: HasilLabHarian[] = [
     created_at: '2026-09-24T09:30:00Z'
   },
 
-  // 3. OPSI 3: Hasil Uji Lab Khusus (Sampling Langsung di Fasilitas Pabrik Mitra / Personalized)
+  // 3. Kategori 3: Hasil Uji Lab Industri (Personalized)
   {
     id: 'lab-005',
-    judul_dokumen: 'Hasil Uji Khusus Mutu Air In-Plant PT Indofood CBP Sukses Makmur Tbk',
-    kategori_lab: 'Uji Khusus Pabrik',
+    judul_dokumen: 'Hasil Uji Mutu Air Industri - PT Indofood CBP Sukses Makmur Tbk',
+    kategori_lab: 'Industri',
     id_pelanggan_khusus: 'AETRA-IND-001',
     nama_perusahaan_khusus: 'PT Indofood CBP Sukses Makmur Tbk',
     tanggal_uji: '2026-09-26',
     waktu_sampling: '10:30 WIB',
     lokasi_sampling: 'Inlet Header Tangki Utama Pabrik F&B PT Indofood CBP, Cikupa',
     nama_analis_lab: 'Nurul Hidayati, S.Si (Spesialis Mutu Industri)',
-    no_sertifikat_lab: 'COA-SPEC/AETRA/IND-001/2026-09',
-    pdf_filename: 'Laporan_Uji_Khusus_Pabrik_PT_Indofood_CBP_Sep2026.pdf',
+    no_sertifikat_lab: 'COA-IND/AETRA/IND-001/2026-09',
+    pdf_filename: 'Laporan_Uji_Lab_Industri_PT_Indofood_CBP_Sep2026.pdf',
     pdf_size: '2.1 MB',
     status_kelayakan: 'MEMENUHI SYARAT (Permenkes No. 2/2023 - Grade Pangan)',
     catatan: 'Sampling resmi in-plant bersama perwakilan QA/QC PT Indofood. Seluruh parameter fisika kimia dan biologis lolos kriteria food-grade utility.',
@@ -337,16 +337,16 @@ export const INITIAL_LAB_RESULTS: HasilLabHarian[] = [
   },
   {
     id: 'lab-006',
-    judul_dokumen: 'Hasil Uji Khusus Mutu Air In-Plant PT Mayora Indah Tbk',
-    kategori_lab: 'Uji Khusus Pabrik',
+    judul_dokumen: 'Hasil Uji Mutu Air Industri - PT Mayora Indah Tbk',
+    kategori_lab: 'Industri',
     id_pelanggan_khusus: 'AETRA-IND-002',
     nama_perusahaan_khusus: 'PT Mayora Indah Tbk',
     tanggal_uji: '2026-09-25',
     waktu_sampling: '11:00 WIB',
     lokasi_sampling: 'Titik Sambungan Meter Induk & Tandon PT Mayora Indah, Jatake',
     nama_analis_lab: 'Nurul Hidayati, S.Si (Spesialis Mutu Industri)',
-    no_sertifikat_lab: 'COA-SPEC/AETRA/IND-002/2026-09',
-    pdf_filename: 'Laporan_Uji_Khusus_Pabrik_PT_Mayora_Indah_Sep2026.pdf',
+    no_sertifikat_lab: 'COA-IND/AETRA/IND-002/2026-09',
+    pdf_filename: 'Laporan_Uji_Lab_Industri_PT_Mayora_Indah_Sep2026.pdf',
     pdf_size: '1.9 MB',
     status_kelayakan: 'MEMENUHI SYARAT (Permenkes No. 2/2023)',
     catatan: 'Pengujian on-site berkala atas permohonan tim engineering PT Mayora Indah Tbk.',
@@ -418,12 +418,59 @@ export const INITIAL_INFO_PELAYANAN: InfoPelayanan[] = [
 export const INITIAL_TIKET: TiketLayanan[] = [
   {
     id: 'tkt-001',
+    id_pelanggan: 'AETRA-IND-002',
+    perihal: 'Rembesan air bertekanan tinggi pada sambungan pipa dinas inlet',
+    kategori: 'Laporan bocor sebelum meter/pipa dinas',
+    pesan: 'Ditemukan kebocoran bertekanan pada pipa dinas sebelum flow meter induk pabrik Mayora Manis. Mohon penanganan darurat dari tim perbaikan pipa Aetra sebelum menggenangi area loading dock.',
+    status: 'Terkirim',
+    status_tindak_lanjut: 'Belum Ditindaklanjuti',
+    urgensi: 'Darurat',
+    created_at: '2026-09-28T09:15:00Z'
+  },
+  {
+    id: 'tkt-002',
+    id_pelanggan: 'AETRA-IND-003',
+    perihal: 'Tekanan suplai air drop di bawah 1.5 bar sejak pagi',
+    kategori: 'Laporan air kecil/tidak mengalir',
+    pesan: 'Tekanan air inlet instalasi saniter pabrik menurun drastis di bawah standar kontinuitas industri (biasanya 3.5 bar). Mohon pengecekan jaringan booster pengumpan wilayah Cikupa Mas.',
+    status: 'Diteruskan ke CC',
+    status_tindak_lanjut: 'Diteruskan ke CC',
+    urgensi: 'Tinggi',
+    no_tiket_cc: 'CC-AETRA-2026-0814',
+    divisi_tujuan: 'Divisi Pemeliharaan Jaringan & Distribusi',
+    catatan_internal_cc: 'Prioritas tinggi. Dispatch tim teknisi flushing dan cek valve pembagi sekunder Balaraja/Cikupa. Pelanggan butuh kontinuitas untuk boiler.',
+    respon_petugas: 'Laporan telah kami terima dan dieskalasikan ke Divisi Distribusi & Contact Center 24 Jam dengan No. Tiket CC-AETRA-2026-0814. Tim operasional jaringan sedang melakukan penyesuaian valve booster.',
+    tanggal_tindak_lanjut: '2026-09-28T10:00:00Z',
+    nama_petugas_tindak_lanjut: 'Budi Santoso, S.T. (Key Account Executive)',
+    created_at: '2026-09-28T08:30:00Z'
+  },
+  {
+    id: 'tkt-003',
     id_pelanggan: 'AETRA-IND-001',
     perihal: 'Permohonan Tera Ulang Kalibrasi Flow Meter Utama Pabrik',
-    kategori: 'Kalibrasi & Akurasi Meter',
-    pesan: 'Mohon dijadwalkan verifikasi dan kalibrasi bersama flow meter 6 inch menjelang audit tahunan ISO 14001 pada awal Oktober 2026.',
+    kategori: 'Request Tera meter',
+    pesan: 'Mohon dijadwalkan verifikasi dan kalibrasi bersama flow meter elektromagentik 6 inch menjelang audit tahunan ISO 14001 pada awal Oktober 2026.',
     status: 'Diproses',
-    respon_petugas: 'Petugas kalibrasi instrumentasi Aetra dijadwalkan hadir bersama tim pabrik pada tanggal 28 September 2026 pukul 09:30 WIB.',
+    status_tindak_lanjut: 'Respon Langsung',
+    urgensi: 'Sedang',
+    divisi_tujuan: 'Divisi Meter & Instrumentasi Industri',
+    respon_petugas: 'Petugas kalibrasi instrumentasi Aetra dijadwalkan hadir bersama tim teknik pabrik pada tanggal 2 Oktober 2026 pukul 09:30 WIB.',
+    tanggal_tindak_lanjut: '2026-09-22T08:45:00Z',
+    nama_petugas_tindak_lanjut: 'Budi Santoso, S.T. (Key Account Executive)',
     created_at: '2026-09-21T11:20:00Z'
+  },
+  {
+    id: 'tkt-004',
+    id_pelanggan: 'AETRA-IND-004',
+    perihal: 'Permintaan Surat Konfirmasi Baku Mutu Air untuk Audit Green Building',
+    kategori: 'Informasi pelanggan',
+    pesan: 'Mohon dikirimkan salinan CoA (Certificate of Analysis) parameter mikrobiologi terbaru untuk lampiran audit sertifikasi gedung hijau.',
+    status: 'Selesai',
+    status_tindak_lanjut: 'Selesai',
+    urgensi: 'Normal',
+    respon_petugas: 'Dokumen sertifikat mutu air periode September 2026 telah diverifikasi tim lab dan telah kami unggah pada menu Hasil Uji Laboratorium portal perusahaan Anda.',
+    tanggal_tindak_lanjut: '2026-09-20T14:10:00Z',
+    nama_petugas_tindak_lanjut: 'Dian Permana (Staf Key Account)',
+    created_at: '2026-09-19T13:00:00Z'
   }
 ];
