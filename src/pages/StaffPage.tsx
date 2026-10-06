@@ -25,6 +25,8 @@ export const StaffPage: React.FC = () => {
     handleDeleteInfo,
     handleDeleteCustomer,
     openCertificateModal,
+    openTiketModal,
+    handleDeleteTiket,
     handleToggleInfoPublish,
     handleToggleInfoBanner,
     handleVerifyPemakaian,
@@ -75,6 +77,8 @@ export const StaffPage: React.FC = () => {
             onToggleInfoBanner={handleToggleInfoBanner}
             onVerifyPemakaian={handleVerifyPemakaian}
             onUpdateStatusProgress={handleUpdateStatusProgress}
+            onOpenTiketModal={openTiketModal}
+            onDeleteTiket={handleDeleteTiket}
           />
         )}
       </main>
