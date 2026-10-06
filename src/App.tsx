@@ -12,6 +12,7 @@ import { CustomerModal } from './components/CustomerModal';
 import { CertificateModal } from './components/CertificateModal';
 import { HotlineModal } from './components/HotlineModal';
 import { ExcelUploadModal } from './components/ExcelUploadModal';
+import { TiketTindakLanjutModal } from './components/TiketTindakLanjutModal';
 
 // Component to handle hash / query routing fallbacks if needed
 function RouteSyncer() {
@@ -72,7 +73,13 @@ function MainApp() {
     // Cert modal
     isCertModalOpen,
     setIsCertModalOpen,
-    selectedCertLab
+    selectedCertLab,
+    // Tiket modal
+    isTiketModalOpen,
+    setIsTiketModalOpen,
+    editingTiket,
+    handleUpdateTiket,
+    currentStaff
   } = useData();
 
   return (
@@ -153,6 +160,15 @@ function MainApp() {
         isOpen={isCertModalOpen}
         onClose={() => setIsCertModalOpen(false)}
         data={selectedCertLab}
+      />
+
+      <TiketTindakLanjutModal
+        isOpen={isTiketModalOpen}
+        onClose={() => setIsTiketModalOpen(false)}
+        tiket={editingTiket}
+        pelangganList={pelangganList}
+        currentStaff={currentStaff}
+        onSave={handleUpdateTiket}
       />
     </>
   );
