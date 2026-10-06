@@ -37,7 +37,13 @@ export interface PemakaianAir {
   created_at?: string;
 }
 
-export type KategoriUjiLab = 'Reservoar' | 'Industri' | 'Pompa Booster' | 'Uji Khusus Pabrik';
+export type KategoriUjiLab =
+  | 'Reservoar IPA'
+  | 'Reservoar Booster'
+  | 'Industri'
+  | 'Reservoar'
+  | 'Pompa Booster'
+  | 'Uji Khusus Pabrik';
 
 export interface HasilLabHarian {
   id: string;
@@ -100,15 +106,28 @@ export interface InfoPelayanan {
   created_at?: string;
 }
 
+export type StatusTiketLayanan = 'Terkirim' | 'Diproses' | 'Diteruskan ke CC' | 'Selesai';
+
+export type TingkatUrgensiTiket = 'Normal' | 'Sedang' | 'Tinggi' | 'Darurat';
+
 export interface TiketLayanan {
   id: string;
   id_pelanggan: string;
   perihal: string;
   kategori: string;
   pesan: string;
-  status: 'Terkirim' | 'Diproses' | 'Selesai';
+  status: StatusTiketLayanan;
   respon_petugas?: string;
   created_at: string;
+
+  // Tindak Lanjut Komplain & Eskalasi Divisi
+  status_tindak_lanjut?: 'Belum Ditindaklanjuti' | 'Respon Langsung' | 'Diteruskan ke CC' | 'Selesai';
+  no_tiket_cc?: string; // Nomor Tiket resmi Contact Center, e.g. CC-AETRA-2026-0891
+  divisi_tujuan?: string; // e.g. 'Contact Center 24 Jam', 'Divisi Pemeliharaan Jaringan & Distribusi', 'Divisi Meter & Instrumentasi', 'Laboratorium Pengendalian Mutu Air'
+  catatan_internal_cc?: string; // Instruksi penugasan internal untuk tim CC / tim lapangan
+  urgensi?: TingkatUrgensiTiket;
+  tanggal_tindak_lanjut?: string;
+  nama_petugas_tindak_lanjut?: string;
 }
 
 export interface SupabaseConfig {
