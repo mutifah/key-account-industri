@@ -286,7 +286,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
           {/* Kotak 1: Upload Rekap Excel (warna hijau) */}
           <button
             onClick={onOpenExcelModal}
-            className="group relative p-4 rounded-2xl bg-emerald-700 hover:bg-emerald-600 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left border border-emerald-600 flex flex-col justify-between h-32 cursor-pointer"
+            className="group relative p-4 rounded-2xl bg-emerald-700 hover:bg-emerald-600 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left border border-emerald-600 flex flex-col justify-between min-h-[138px] overflow-hidden cursor-pointer"
           >
             <div className="flex items-center justify-between w-full">
               <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
@@ -297,7 +297,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
               </span>
             </div>
             <div>
-              <h3 className="font-bold text-sm sm:text-base tracking-tight leading-snug">
+              <h3 className="font-bold text-sm tracking-tight leading-snug">
                 Upload Rekap Excel
               </h3>
               <p className="text-[11px] text-emerald-100 mt-0.5 line-clamp-1">
@@ -309,7 +309,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
           {/* Kotak 2: Input Manual (warna hijau muda) */}
           <button
             onClick={() => onOpenMeterModal(null)}
-            className="group relative p-4 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left border border-emerald-300 flex flex-col justify-between h-32 cursor-pointer"
+            className="group relative p-4 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left border border-emerald-300 flex flex-col justify-between min-h-[138px] overflow-hidden cursor-pointer"
           >
             <div className="flex items-center justify-between w-full">
               <div className="w-9 h-9 rounded-xl bg-slate-950/15 flex items-center justify-center text-slate-950 backdrop-blur-xs shadow-xs">
@@ -320,7 +320,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
               </span>
             </div>
             <div>
-              <h3 className="font-bold text-sm sm:text-base tracking-tight leading-snug text-slate-950">
+              <h3 className="font-bold text-sm tracking-tight leading-snug text-slate-950">
                 Input Manual
               </h3>
               <p className="text-[11px] text-slate-800 mt-0.5 line-clamp-1">
@@ -332,7 +332,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
           {/* Kotak 3: Upload Hasil Uji Lab (warna biru muda - tampilan disatukan) */}
           <button
             onClick={() => onOpenLabModal(null)}
-            className="group relative p-4 rounded-2xl bg-sky-500 hover:bg-sky-400 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left border border-sky-400 flex flex-col justify-between h-32 cursor-pointer"
+            className="group relative p-4 rounded-2xl bg-sky-500 hover:bg-sky-400 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left border border-sky-400 flex flex-col justify-between min-h-[138px] overflow-hidden cursor-pointer"
           >
             <div className="flex items-center justify-between w-full">
               <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
@@ -343,7 +343,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
               </span>
             </div>
             <div>
-              <h3 className="font-bold text-sm sm:text-base tracking-tight leading-snug">
+              <h3 className="font-bold text-sm tracking-tight leading-snug">
                 Upload Hasil Uji Lab
               </h3>
               <p className="text-[11px] text-sky-100 mt-0.5 line-clamp-1">
@@ -352,10 +352,10 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
             </div>
           </button>
 
-          {/* Kotak 4: Upload Banner Pemberitahuan / Gangguan (warna oren) */}
+          {/* Kotak 4: Upload Banner Gangguan (warna oren) */}
           <button
             onClick={() => onOpenInfoModal(null)}
-            className="group relative p-4 rounded-2xl bg-orange-500 hover:bg-orange-400 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left border border-orange-400 flex flex-col justify-between h-32 cursor-pointer"
+            className="group relative p-4 rounded-2xl bg-orange-500 hover:bg-orange-400 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left border border-orange-400 flex flex-col justify-between min-h-[138px] overflow-hidden cursor-pointer"
           >
             <div className="flex items-center justify-between w-full">
               <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
@@ -366,8 +366,8 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
               </span>
             </div>
             <div>
-              <h3 className="font-bold text-sm sm:text-base tracking-tight leading-snug">
-                Upload Banner Pemberitahuan / Gangguan
+              <h3 className="font-bold text-sm tracking-tight leading-snug">
+                Upload Banner Gangguan
               </h3>
               <p className="text-[11px] text-orange-100 mt-0.5 line-clamp-1">
                 Info pemeliharaan pipa & pasokan
@@ -381,7 +381,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
               setActiveTab('tiket');
               setSearchQuery('');
             }}
-            className="group relative p-4 rounded-2xl bg-purple-700 hover:bg-purple-600 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left border border-purple-600 flex flex-col justify-between h-32 cursor-pointer"
+            className="group relative p-4 rounded-2xl bg-purple-700 hover:bg-purple-600 text-white shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 text-left border border-purple-600 flex flex-col justify-between min-h-[138px] overflow-hidden cursor-pointer"
           >
             <div className="flex items-center justify-between w-full">
               <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
@@ -398,7 +398,7 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
               </span>
             </div>
             <div>
-              <h3 className="font-bold text-sm sm:text-base tracking-tight leading-snug">
+              <h3 className="font-bold text-sm tracking-tight leading-snug">
                 Tindak Lanjut Komplain
               </h3>
               <p className="text-[11px] text-purple-100 mt-0.5 line-clamp-1">
