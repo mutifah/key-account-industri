@@ -406,7 +406,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-600 leading-relaxed mt-0.5">
-                  Jika nama perusahaan di file Excel diubah oleh staf, sistem akan otomatis memperbarui nama perusahaan di seluruh website (portal mandiri pelanggan, bukti BPM, header, dan dashboard).
+                  Jika nama perusahaan di file Excel diubah oleh staf, sistem akan otomatis memperbarui nama perusahaan di seluruh website (portal mandiri pelanggan, rekap meter, header, dan dashboard).
                 </p>
               </div>
             </div>
