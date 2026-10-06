@@ -25,7 +25,9 @@ import {
   saveInfoPelayanan,
   deleteInfoPelayanan,
   getTiketLayanan,
-  createTiketLayanan
+  createTiketLayanan,
+  saveTiketLayanan,
+  deleteTiketLayanan
 } from '../lib/storage';
 import { getCurrentStaff, logoutStaff as authLogoutStaff } from '../lib/auth';
 
@@ -57,6 +59,8 @@ interface DataContextType {
   handleSaveCustomer: (data: PelangganIndustri) => Promise<void>;
   handleDeleteCustomer: (id: string) => Promise<void>;
   handleCreateTiket: (tiket: Omit<TiketLayanan, 'id' | 'created_at'>) => Promise<void>;
+  handleUpdateTiket: (tiket: TiketLayanan) => Promise<void>;
+  handleDeleteTiket: (id: string) => Promise<void>;
 
   // Modals
   isDeployModalOpen: boolean;
@@ -77,9 +81,9 @@ interface DataContextType {
   setIsLabModalOpen: (open: boolean) => void;
   editingLab: HasilLabHarian | null;
   setEditingLab: (item: HasilLabHarian | null) => void;
-  labModalKategori: 'Reservoar' | 'Pompa Booster' | 'Industri';
-  setLabModalKategori: (kategori: 'Reservoar' | 'Pompa Booster' | 'Industri') => void;
-  openLabModal: (item?: HasilLabHarian | null, kategori?: 'Reservoar' | 'Pompa Booster' | 'Industri') => void;
+  labModalKategori: 'Reservoar IPA' | 'Reservoar Booster' | 'Industri';
+  setLabModalKategori: (kategori: 'Reservoar IPA' | 'Reservoar Booster' | 'Industri') => void;
+  openLabModal: (item?: HasilLabHarian | null, kategori?: 'Reservoar IPA' | 'Reservoar Booster' | 'Industri' | string) => void;
 
   isInfoModalOpen: boolean;
   setIsInfoModalOpen: (open: boolean) => void;
@@ -97,6 +101,12 @@ interface DataContextType {
   setIsCertModalOpen: (open: boolean) => void;
   selectedCertLab: HasilLabHarian | null;
   openCertificateModal: (lab: HasilLabHarian) => void;
+
+  isTiketModalOpen: boolean;
+  setIsTiketModalOpen: (open: boolean) => void;
+  editingTiket: TiketLayanan | null;
+  setEditingTiket: (item: TiketLayanan | null) => void;
+  openTiketModal: (item?: TiketLayanan | null) => void;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -124,7 +134,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Lab modal
   const [isLabModalOpen, setIsLabModalOpen] = useState(false);
   const [editingLab, setEditingLab] = useState<HasilLabHarian | null>(null);
-  const [labModalKategori, setLabModalKategori] = useState<'Reservoar' | 'Pompa Booster' | 'Industri'>('Reservoar');
+  const [labModalKategori, setLabModalKategori] = useState<'Reservoar IPA' | 'Reservoar Booster' | 'Industri'>('Reservoar IPA');
 
   // Info modal
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -137,6 +147,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Certificate modal
   const [isCertModalOpen, setIsCertModalOpen] = useState(false);
   const [selectedCertLab, setSelectedCertLab] = useState<HasilLabHarian | null>(null);
+
+  // Tiket / Komplain modal
+  const [isTiketModalOpen, setIsTiketModalOpen] = useState(false);
+  const [editingTiket, setEditingTiket] = useState<TiketLayanan | null>(null);
 
   // Load staff session on mount
   useEffect(() => {
@@ -303,22 +317,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await loadData();
   };
 
+  const handleUpdateTiket = async (tiket: TiketLayanan) => {
+    await saveTiketLayanan(tiket);
+    await loadData();
+  };
+
+  const handleDeleteTiket = async (id: string) => {
+    await deleteTiketLayanan(id);
+    await loadData();
+  };
+
   // Modal Triggers
   const openMeterModal = (item?: PemakaianAir | null) => {
     setEditingPemakaian(item || null);
     setIsMeterModalOpen(true);
   };
 
-  const openLabModal = (item?: HasilLabHarian | null, kategori?: 'Reservoar' | 'Pompa Booster' | 'Industri') => {
+  const openLabModal = (item?: HasilLabHarian | null, kategori?: 'Reservoar IPA' | 'Reservoar Booster' | 'Industri' | string) => {
     setEditingLab(item || null);
-    if (kategori) {
-      setLabModalKategori(kategori);
+    if (kategori === 'Industri' || kategori === 'Uji Khusus Pabrik') {
+      setLabModalKategori('Industri');
+    } else if (kategori === 'Reservoar Booster' || kategori === 'Pompa Booster') {
+      setLabModalKategori('Reservoar Booster');
+    } else if (kategori === 'Reservoar IPA' || kategori === 'Reservoar') {
+      setLabModalKategori('Reservoar IPA');
     } else if (item?.kategori_lab === 'Industri' || item?.kategori_lab === 'Uji Khusus Pabrik') {
       setLabModalKategori('Industri');
-    } else if (item?.kategori_lab === 'Pompa Booster') {
-      setLabModalKategori('Pompa Booster');
+    } else if (item?.kategori_lab === 'Reservoar Booster' || item?.kategori_lab === 'Pompa Booster') {
+      setLabModalKategori('Reservoar Booster');
     } else {
-      setLabModalKategori('Reservoar');
+      setLabModalKategori('Reservoar IPA');
     }
     setIsLabModalOpen(true);
   };
@@ -336,6 +364,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const openCertificateModal = (lab: HasilLabHarian) => {
     setSelectedCertLab(lab);
     setIsCertModalOpen(true);
+  };
+
+  const openTiketModal = (tiket?: TiketLayanan | null) => {
+    setEditingTiket(tiket || null);
+    setIsTiketModalOpen(true);
   };
 
   const value: DataContextType = {
@@ -365,6 +398,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     handleSaveCustomer,
     handleDeleteCustomer,
     handleCreateTiket,
+    handleUpdateTiket,
+    handleDeleteTiket,
 
     isDeployModalOpen,
     setIsDeployModalOpen,
@@ -403,7 +438,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isCertModalOpen,
     setIsCertModalOpen,
     selectedCertLab,
-    openCertificateModal
+    openCertificateModal,
+
+    isTiketModalOpen,
+    setIsTiketModalOpen,
+    editingTiket,
+    setEditingTiket,
+    openTiketModal
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
