@@ -1,5 +1,5 @@
 import React from 'react';
-import { Droplets, Database, LogOut, ExternalLink, ShieldCheck, User } from 'lucide-react';
+import { Droplets, Database, LogOut, ExternalLink, ShieldCheck, User, Headphones } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StaffUser } from '../types';
 import { getSavedSupabaseConfig } from '../lib/supabase';
@@ -18,6 +18,7 @@ export const StaffHeader: React.FC<StaffHeaderProps> = ({
 }) => {
   const { url } = getSavedSupabaseConfig();
   const isSupabaseConfigured = Boolean(url && url.startsWith('http'));
+  const isCustomerCare = staffUser?.role === 'Customer Care';
 
   return (
     <header className="sticky top-0 z-40 bg-slate-950 border-b border-slate-800 text-white shadow-md">
@@ -33,13 +34,22 @@ export const StaffHeader: React.FC<StaffHeaderProps> = ({
                 <span className="text-lg font-bold tracking-tight text-white font-['Plus_Jakarta_Sans']">
                   AETRA AIR TANGERANG
                 </span>
-                <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-800/60">
-                  <ShieldCheck className="w-3 h-3 text-amber-400" />
-                  Internal Staf
-                </span>
+                {isCustomerCare ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-purple-300 bg-purple-950/80 px-2 py-0.5 rounded border border-purple-800/60">
+                    <Headphones className="w-3 h-3 text-purple-400" />
+                    Customer Care (CC)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-800/60">
+                    <ShieldCheck className="w-3 h-3 text-amber-400" />
+                    Internal Staf
+                  </span>
+                )}
               </div>
               <span className="text-xs text-slate-400 hidden sm:block">
-                Sistem Administrasi Meter Industri, Mutu Lab & Jaringan Terpadu
+                {isCustomerCare
+                  ? 'Contact Center 24 Jam & Penerimaan Eskalasi OpenBravo'
+                  : 'Sistem Administrasi Meter Industri, Mutu Lab & Jaringan Terpadu'}
               </span>
             </div>
           </div>
