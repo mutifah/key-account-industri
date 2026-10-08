@@ -1,6 +1,7 @@
 import React from 'react';
 import { StaffHeader } from '../components/StaffHeader';
 import { StaffPortal } from '../components/StaffPortal';
+import { CustomerCarePortal } from '../components/CustomerCarePortal';
 import { StaffLogin } from '../components/StaffLogin';
 import { useData } from '../context/DataContext';
 
@@ -27,6 +28,7 @@ export const StaffPage: React.FC = () => {
     openCertificateModal,
     openTiketModal,
     handleDeleteTiket,
+    handleUpdateTiket,
     handleToggleInfoPublish,
     handleToggleInfoBanner,
     handleVerifyPemakaian,
@@ -38,6 +40,9 @@ export const StaffPage: React.FC = () => {
   if (!currentStaff) {
     return <StaffLogin onLoginSuccess={(user) => setCurrentStaff(user)} />;
   }
+
+  // Determine if logged-in user is Customer Care
+  const isCustomerCare = currentStaff.role === 'Customer Care';
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
@@ -53,9 +58,18 @@ export const StaffPage: React.FC = () => {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-28 text-slate-500 text-xs">
             <div className="w-8 h-8 border-2 border-slate-700 border-t-transparent rounded-full animate-spin mb-3" />
-            <span>Memuat pangkalan data internal Key Account...</span>
+            <span>Memuat pangkalan data internal...</span>
           </div>
+        ) : isCustomerCare ? (
+          /* Role: Customer Care - ONLY escalated tickets from admin, OpenBravo checklist */
+          <CustomerCarePortal
+            currentStaff={currentStaff}
+            tiketList={tiketList}
+            pelangganList={pelangganList}
+            onUpdateTiket={handleUpdateTiket}
+          />
         ) : (
+          /* Role: Admin / Key Account / Lab - Full operations */
           <StaffPortal
             currentStaff={currentStaff}
             pelangganList={pelangganList}
@@ -89,7 +103,11 @@ export const StaffPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="font-bold text-slate-300">PT AETRA AIR TANGERANG</span>
             <span className="text-slate-600">·</span>
-            <span>Key Account Industrial Operations & Lab Portal</span>
+            <span>
+              {isCustomerCare
+                ? 'Contact Center (CC) 24 Jam & Dispatch Operations'
+                : 'Key Account Industrial Operations & Lab Portal'}
+            </span>
           </div>
           <div className="flex items-center gap-4 text-slate-500">
             <span>Audit Trail Enabled</span>
