@@ -158,6 +158,49 @@ export const StaffLogin: React.FC<StaffLoginProps> = ({ onLoginSuccess }) => {
                 )}
               </button>
             </form>
+
+            {/* Quick Demo Staff Account Picker */}
+            <div className="pt-3 border-t border-slate-700/60 space-y-2">
+              <span className="text-[11px] font-semibold text-slate-400 block">
+                Pilih Akun Demo untuk Pengujian Cepat:
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                {/* 1. Admin / Key Account */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIdentifier('admin@aetra-tangerang.co.id');
+                    setPassword('aetra2026');
+                  }}
+                  className="p-2 rounded-lg bg-slate-900 hover:bg-slate-750 border border-slate-700 text-left transition-colors cursor-pointer group"
+                >
+                  <div className="font-bold text-white group-hover:text-cyan-400">
+                    Admin / Key Account
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono">
+                    admin@aetra-tangerang.co.id
+                  </div>
+                </button>
+
+                {/* 2. Customer Care (CC) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIdentifier('cc.officer@aetra-tangerang.co.id');
+                    setPassword('aetra2026');
+                  }}
+                  className="p-2 rounded-lg bg-purple-950/40 hover:bg-purple-950/70 border border-purple-800/60 text-left transition-colors cursor-pointer group"
+                >
+                  <div className="font-bold text-purple-300 group-hover:text-purple-200 flex items-center gap-1">
+                    <span>Customer Care (CC)</span>
+                    <span className="text-[9px] bg-purple-800 text-purple-200 px-1 py-0.2 rounded">Baru</span>
+                  </div>
+                  <div className="text-[10px] text-purple-400 font-mono">
+                    cc.officer@aetra-tangerang.co.id
+                  </div>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
