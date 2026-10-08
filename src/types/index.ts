@@ -123,11 +123,19 @@ export interface TiketLayanan {
   // Tindak Lanjut Komplain & Eskalasi Divisi
   status_tindak_lanjut?: 'Belum Ditindaklanjuti' | 'Respon Langsung' | 'Diteruskan ke CC' | 'Selesai';
   no_tiket_cc?: string; // Nomor Tiket resmi Contact Center, e.g. CC-AETRA-2026-0891
-  divisi_tujuan?: string; // e.g. 'Contact Center 24 Jam', 'Divisi Pemeliharaan Jaringan & Distribusi', 'Divisi Meter & Instrumentasi', 'Laboratorium Pengendalian Mutu Air'
+  divisi_tujuan?: string;
   catatan_internal_cc?: string; // Instruksi penugasan internal untuk tim CC / tim lapangan
   urgensi?: TingkatUrgensiTiket;
   tanggal_tindak_lanjut?: string;
   nama_petugas_tindak_lanjut?: string;
+
+  // Integrasi & Checklist OpenBravo oleh Tim Customer Care (CC)
+  openbravo_case_created?: boolean;
+  no_case_openbravo?: string; // e.g. OB-2026-0814
+  tanggal_case_openbravo?: string;
+  petugas_case_openbravo?: string;
+  catatan_openbravo?: string;
+  status_penanganan_cc?: 'Menunggu Input OB' | 'Dalam Proses CC' | 'Selesai Penanganan CC';
 }
 
 export interface SupabaseConfig {
@@ -143,7 +151,7 @@ export interface StaffUser {
   email: string;
   jabatan: string;
   divisi: string;
-  role: 'Key Account Executive' | 'Lab Quality Analyst' | 'Admin';
+  role: 'Key Account Executive' | 'Lab Quality Analyst' | 'Admin' | 'Customer Care';
   avatar_initials: string;
   last_login?: string;
 }
