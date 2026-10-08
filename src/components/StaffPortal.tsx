@@ -1236,15 +1236,31 @@ export const StaffPortal: React.FC<StaffPortalProps> = ({
                       <div className="space-y-1.5 pt-1 text-xs">
                         {/* Jika ada no tiket CC */}
                         {t.no_tiket_cc && (
-                          <div className="p-2 bg-purple-50 rounded-lg border border-purple-100 text-purple-950 flex items-center justify-between gap-2 flex-wrap text-[11px]">
-                            <div className="flex items-center gap-1.5">
-                              <Headphones className="w-3.5 h-3.5 text-purple-700 shrink-0" />
-                              <span>Eskalasi CC: <strong className="font-mono">{t.no_tiket_cc}</strong></span>
+                          <div className="p-2.5 bg-purple-50 rounded-xl border border-purple-100 text-purple-950 space-y-1.5 text-[11px]">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-1.5">
+                                <Headphones className="w-3.5 h-3.5 text-purple-700 shrink-0" />
+                                <span>Eskalasi CC: <strong className="font-mono">{t.no_tiket_cc}</strong></span>
+                              </div>
+
+                              {/* OpenBravo Case Status Badge */}
+                              {t.openbravo_case_created ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  <span>Case OpenBravo: {t.no_case_openbravo}</span>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-amber-600" />
+                                  <span>Menunggu Case OB oleh CC</span>
+                                </span>
+                              )}
                             </div>
+
                             {t.catatan_internal_cc && (
-                              <span className="italic text-purple-800 text-[10px]">
+                              <p className="italic text-purple-800 text-[10px]">
                                 "{t.catatan_internal_cc}"
-                              </span>
+                              </p>
                             )}
                           </div>
                         )}
