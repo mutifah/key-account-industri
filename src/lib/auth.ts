@@ -145,6 +145,17 @@ export const DEMO_STAFF_ACCOUNTS: (StaffUser & { password_hint: string })[] = [
     role: 'Admin',
     avatar_initials: 'HW',
     password_hint: 'aetra2026'
+  },
+  {
+    id: 'staff-4',
+    nik: 'CC-0711',
+    nama: 'Siti Rahmawati, S.I.Kom.',
+    email: 'cc.officer@aetra-tangerang.co.id',
+    jabatan: 'Customer Care & Dispatch Officer',
+    divisi: 'Divisi Contact Center (CC) 24 Jam',
+    role: 'Customer Care',
+    avatar_initials: 'SR',
+    password_hint: 'aetra2026'
   }
 ];
 
@@ -229,14 +240,15 @@ export async function loginStaff(
   if (cleanId.endsWith('@aetra-tangerang.co.id') && (cleanPass === 'aetra2026' || cleanPass === 'aetra2026!')) {
     const prefix = cleanId.split('@')[0].replace('.', ' ');
     const formattedName = prefix.charAt(0).toUpperCase() + prefix.slice(1);
+    const isCc = cleanId.includes('cc') || cleanId.includes('customercare');
     const customUser: StaffUser = {
       id: `staff-${Date.now()}`,
-      nik: `KA-${Math.floor(1000 + Math.random() * 9000)}`,
+      nik: isCc ? `CC-${Math.floor(1000 + Math.random() * 9000)}` : `KA-${Math.floor(1000 + Math.random() * 9000)}`,
       nama: formattedName,
       email: cleanId,
-      jabatan: 'Key Account Staff Officer',
-      divisi: 'Divisi Pelayanan Pelanggan Industri',
-      role: 'Key Account Executive',
+      jabatan: isCc ? 'Customer Care Officer' : 'Key Account Staff Officer',
+      divisi: isCc ? 'Divisi Contact Center (CC) 24 Jam' : 'Divisi Pelayanan Pelanggan Industri',
+      role: isCc ? 'Customer Care' : 'Key Account Executive',
       avatar_initials: formattedName.slice(0, 2).toUpperCase(),
       last_login: new Date().toISOString()
     };
